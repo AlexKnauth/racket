@@ -154,7 +154,8 @@
        (syntax-parse stx
          [(_ pat rhs:expr)
           (let ([p (parse-id #'pat)])
-            (with-syntax ([vars (bound-vars p)])
+            (with-syntax ([pat (syntax-property #'pat 'parsed-pat p)]
+                          [vars (bound-vars p)])
               (quasisyntax/loc stx
                 (define-values vars (match*/derived (rhs) #,stx
 				      [(pat) (values . vars)])))))]))
@@ -162,6 +163,8 @@
      (define-syntax (match-define-values stx)
        (syntax-parse stx
          [(_ (pats ...) rhs:expr)
+          #:with (pats ...) (for/list ([pat (in-list (syntax->list #'(pats ...)))])
+                              (syntax-property pat 'parsed-pat (parse-id pat)))
           (define bound-vars-list (remove-duplicates
                                    (foldr (λ (pat vars)
                                              (append (bound-vars (parse-id pat)) vars))
