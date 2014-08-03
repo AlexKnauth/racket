@@ -163,18 +163,18 @@
      (define-syntax (match-define-values stx)
        (syntax-parse stx
          [(_ (pats ...) rhs:expr)
-          #:with (pats ...) (for/list ([pat (in-list (syntax->list #'(pats ...)))])
-                              (syntax-property pat 'parsed-pat (parse-id pat)))
-          (define bound-vars-list (remove-duplicates
-                                   (foldr (λ (pat vars)
-                                             (append (bound-vars (parse-id pat)) vars))
-                                          '() (syntax->list #'(pats ...)))
-                                   bound-identifier=?))
-          (with-syntax ([(ids ...) (generate-temporaries #'(pats ...))])
-            (quasisyntax/loc stx
-              (define-values #,bound-vars-list
-                (match/values rhs
-                  [(pats ...) (values . #,bound-vars-list)]))))]))
+          (with-syntax ([(pats ...) (for/list ([pat (in-list (syntax->list #'(pats ...)))])
+                                      (syntax-property pat 'parsed-pat (parse-id pat)))])
+            (define bound-vars-list (remove-duplicates
+                                     (foldr (λ (pat vars)
+                                               (append (bound-vars (parse-id pat)) vars))
+                                            '() (syntax->list #'(pats ...)))
+                                     bound-identifier=?))
+            (with-syntax ([(ids ...) (generate-temporaries #'(pats ...))])
+              (quasisyntax/loc stx
+                (define-values #,bound-vars-list
+                  (match/values rhs
+                    [(pats ...) (values . #,bound-vars-list)])))))]))
 
      (define-syntax (define/match stx)
        (syntax-parse stx
