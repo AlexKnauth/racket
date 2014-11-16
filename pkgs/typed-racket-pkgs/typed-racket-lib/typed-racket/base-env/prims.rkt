@@ -610,6 +610,21 @@ This file defines two sorts of primitives. All of them are provided into any mod
                         (~seq #:property prop:expr prop-val:expr))
                    ...))))
 
+;; (define-guard+types guard-name:id guard-expr:expr ([acc-ty:id -> ret-ty:expr] ...))
+(define-syntax define-guard+types
+  (lambda (stx)
+    (syntax-parse stx #:datum-literals (->)
+      [(define-guard+types guard-name:id (~and guard-expr #f) ([acc-ty:id -> ret-ty:expr] ...))
+       (syntax/loc #'guard-expr
+         (begin (define-type-alias acc-ty ret-ty) ...
+                (: guard-name : #f)
+                (define guard-name guard-expr)))]
+      [(define-guard+types guard-name:id guard-expr:expr ([acc-ty:id -> ret-ty:expr] ...))
+       (syntax/loc #'guard-expr
+         (begin (define-type-alias acc-ty ret-ty) ...
+                (: guard-name : (Option (-> acc-ty ... Symbol (values ret-ty ...))))
+                (define guard-name guard-expr)))])))
+
 ;; User-facing macros for defining typed structure types
 (define-syntaxes (define-typed-struct -struct)
   (values
@@ -622,12 +637,9 @@ This file defines two sorts of primitives. All of them are provided into any mod
         ;; to point at this transplanted definition since errors will highlight the
         ;; correct original syntax.
         (define guard-name (generate-temporary))
+        (define/syntax-parse (acc-ty:id ...) (generate-temporaries #'(fs.fld ...)))
         (define guard-expression
-          (if (attribute opts.guard)
-              (quasisyntax/loc (attribute opts.guard)
-                (begin (: #,guard-name (Option (-> fs.ty ... Symbol (values fs.ty ...))))
-                       (define #,guard-name #,(attribute opts.guard))))
-              #`(define #,guard-name #f)))
+          #`(define-guard+types #,guard-name #,(attribute opts.guard) ([acc-ty -> fs.ty] ...)))
         (let ([mutable? (if (attribute opts.mutable?) #'(#:mutable) #'())]
               [transparent? (if (attribute opts.transparent?) #'(#:transparent) #'())]
               [cname (second (build-struct-names #'nm.name empty #t #t))])
@@ -667,12 +679,9 @@ This file defines two sorts of primitives. All of them are provided into any mod
        [(_ vars:maybe-type-vars nm:struct-name/new (fs:fld-spec ...)
            opts:struct-options)
         (define guard-name (generate-temporary))
+        (define/syntax-parse (acc-ty:id ...) (generate-temporaries #'(fs.fld ...)))
         (define guard-expression
-          (if (attribute opts.guard)
-              (quasisyntax/loc (attribute opts.guard)
-                (begin (: #,guard-name (Option (-> fs.ty ... Symbol (values fs.ty ...))))
-                       (define #,guard-name #,(attribute opts.guard))))
-              #`(define #,guard-name #f)))
+          #`(define-guard+types #,guard-name #,(attribute opts.guard) ([acc-ty -> fs.ty] ...)))
         (let ([mutable? (if (attribute opts.mutable?) #'(#:mutable) #'())]
               [transparent? (if (attribute opts.transparent?) #'(#:transparent) #'())])
           (with-syntax ([d-s (ignore (quasisyntax/loc stx
