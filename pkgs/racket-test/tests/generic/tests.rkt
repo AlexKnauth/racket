@@ -21,5 +21,6 @@
          "pr13737.rkt"
          "marked.rkt"
          "methods.rkt"
+         "extend.rkt"
          "impersonate.rkt")
 

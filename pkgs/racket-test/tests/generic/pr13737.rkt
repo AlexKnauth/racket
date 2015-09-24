@@ -26,6 +26,7 @@
     #:defaults ()
     #:fallbacks ()
     #:derive-properties ()
+    #:extends []
     (meth foo #:kw kw))
 
   (check-equal? (meth 3 #:kw 5) 5))

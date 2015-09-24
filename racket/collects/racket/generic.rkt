@@ -98,6 +98,14 @@
                               (hash-ref options 'derived '()))))]
       [(#:derive-property . other)
        (wrong-syntax (stx-car stx) "invalid #:derive-property specification")]
+      [(#:extends super-gen . args)
+       (parse #'args
+              (hash-set options
+                        'extends
+                        (cons #'super-gen
+                              (hash-ref options 'extends '()))))]
+      [(#:extends . other)
+       (wrong-syntax (stx-car stx) "invalid #:extends specification")]
       [(kw . args)
        (keyword? (syntax-e #'kw))
        (wrong-syntax #'kw "invalid keyword argument")]
@@ -117,7 +125,8 @@
                   (hash-ref options 'fast-defaults '())
                   (hash-ref options 'defaults '())
                   (hash-ref options 'fallbacks '())
-                  (hash-ref options 'derived '()))]
+                  (hash-ref options 'derived '())
+                  (hash-ref options 'extends '()))]
       [other
        (wrong-syntax #'other
                      "expected a list of arguments with no dotted tail")])))
@@ -129,12 +138,13 @@
        (unless (identifier? #'name)
          (wrong-syntax #'name "expected an identifier"))
        (define-values
-         (methods support table fasts defaults fallbacks derived)
+         (methods support table fasts defaults fallbacks derived supers)
          (parse #'rest))
        (define/with-syntax [fast-default ...] fasts)
        (define/with-syntax [default ...] defaults)
        (define/with-syntax [fallback ...] fallbacks)
        (define/with-syntax [derive ...] derived)
+       (define/with-syntax [super ...] supers)
        (define/with-syntax [method ...] methods)
        (define/with-syntax [method-name ...] (map stx-car methods))
        (define/with-syntax [method-index ...]
@@ -163,6 +173,7 @@
              #:defaults [default ...]
              #:fallbacks [fallback ...]
              #:derive-properties [derive ...]
+             #:extends [super ...]
              method ...)
            table-defn
            (define-generics-contract ctc-name gen-name)))]))

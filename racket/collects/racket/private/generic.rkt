@@ -1,5 +1,6 @@
 #lang racket/base
 (require (for-syntax racket/base
+                     racket/list
                      racket/local
                      racket/syntax
                      syntax/stx
@@ -40,6 +41,7 @@
         #:defaults ([default-pred default-disp default-defn ...] ...)
         #:fallbacks [fallback-defn ...]
         #:derive-properties ([derived-prop derived-impl] ...)
+        #:extends [super ...]
         [method-name . method-signature]
         ...)
      (parameterize ([current-syntax-context #'original])
@@ -51,22 +53,43 @@
        (check-identifier! #'self-name)
        (define methods (syntax->list #'(method-name ...)))
        (for-each check-identifier! methods)
+       (define supers (syntax->list #'[super ...]))
+       (for-each check-identifier! supers)
+       (define vals (map syntax-local-value supers))
+       (define super-properties (map generic-info-property vals))
+       (define super-methodss (map generic-info-method-names vals))
+       (define super-methods (append* super-methodss))
+       (define all-methods (append methods super-methods))
+       (define/with-syntax [super-property ...] super-properties)
+       (define/with-syntax [[super-method ...] ...] super-methodss)
+       (define/with-syntax [method-name+ ...] all-methods)
 
        (define n (length methods))
+       (define n+ (length all-methods))
        (define method-indices (for/list ([i (in-range n)]) i))
+       (define method-indices+ (for/list ([i (in-range n+)]) i))
        (define fast-preds (syntax->list #'(fast-pred ...)))
        (define default-preds (syntax->list #'(default-pred ...)))
        (define (generate-methods . ignore) (generate-temporaries methods))
+       (define (generate-methods- . ignore) (generate-temporaries super-methods))
        (define (transpose-methods names)
          (map cdr (apply map list methods names)))
+       (define (transpose-methods- names)
+         (map cdr (apply map list super-methods names)))
 
-       (define fasts-by-type (map generate-methods fast-preds))
+       (define fasts-by-type (map generate-methods fast-preds)) ; (Listof (Listof Id))
        (define fasts-by-method (transpose-methods fasts-by-type))
+       (define fasts-by-type- (map generate-methods- fast-preds))
+       (define fasts-by-method- (transpose-methods- fasts-by-type-))
        (define defaults-by-type (map generate-methods default-preds))
        (define defaults-by-method (transpose-methods defaults-by-type))
+       (define defaults-by-type- (map generate-methods- default-preds))
+       (define defaults-by-method- (transpose-methods- defaults-by-type-))
 
        (define/with-syntax size n)
+       (define/with-syntax size+ n+)
        (define/with-syntax [method-index ...] method-indices)
+       (define/with-syntax [method-index+ ...] method-indices+)
        (define/with-syntax contract-str
          (format "~s" (syntax-e #'predicate-name)))
 
@@ -94,9 +117,19 @@
 
        (define/with-syntax ([fast-by-method ...] ...) fasts-by-method)
        (define/with-syntax ([fast-by-type ...] ...) fasts-by-type)
+       (define/with-syntax ([fast-by-method- ...] ...) fasts-by-method-)
+       (define/with-syntax ([fast-by-type- ...] ...) fasts-by-type-)
+       (define/with-syntax ([fast-by-method+ ...] ...) #'([fast-by-method ...] ... [fast-by-method- ...] ...))
+       (define/with-syntax ([fast-by-type+ ...] ...) #'([fast-by-type ... fast-by-type- ...] ...))
        (define/with-syntax ([default-by-method ...] ...) defaults-by-method)
        (define/with-syntax ([default-by-type ...] ...) defaults-by-type)
+       (define/with-syntax ([default-by-method- ...] ...) defaults-by-method-)
+       (define/with-syntax ([default-by-type- ...] ...) defaults-by-type-)
+       (define/with-syntax ([default-by-method+ ...] ...) #'([default-by-method ...] ... [default-by-method- ...] ...))
+       (define/with-syntax ([default-by-type+ ...] ...) #'([default-by-type ... default-by-type- ...] ...))
        (define/with-syntax [fallback ...] (generate-methods))
+       (define/with-syntax [fallback- ...] (generate-methods-))
+       (define/with-syntax [fallback+ ...] #'[fallback ... fallback- ...])
 
        (define/with-syntax forward-declaration
          (if (eq? (syntax-local-context) 'top-level)
@@ -105,8 +138,11 @@
                                  default-pred-name ...
                                  default-disp-name ...
                                  fast-by-method ... ...
+                                 fast-by-method- ... ...
                                  default-by-method ... ...
-                                 fallback ...)
+                                 default-by-method- ... ...
+                                 fallback ...
+                                 fallback- ...)
                  (values))
              #'(begin)))
 
@@ -116,13 +152,13 @@
                                 (quote-syntax property-name)
                                 (quote-syntax prop:pred)
                                 (quote-syntax accessor-name)
-                                (list (quote-syntax method-name) ...)
-                                (list (quote-syntax method-name) ...)))
+                                (list (quote-syntax method-name+) ...)
+                                (list (quote-syntax method-name+) ...)))
            (define (prop:guard x info)
-             (unless (and (vector? x) (= (vector-length x) 'size))
+             (unless (and (vector? x) (= (vector-length x) 'size+))
                (raise-argument-error 'generic-name
                                      (format "expected a vector of length ~a"
-                                             'size)
+                                             'size+)
                                      x))
              (check-generic-method generic-name
                                    method-name
@@ -138,8 +174,13 @@
               (list
                (cons derived-prop
                      (lambda (impl)
-                       (let ([method-name (vector-ref impl 'method-index)] ...)
+                       (let ([method-name+ (vector-ref impl 'method-index+)] ...)
                          derived-impl)))
+               ...
+               (cons super-property
+                     (lambda (impl)
+                       (let ([method-name+ (vector-ref impl 'method-index+)] ...)
+                         (vector super-method ...))))
                ...)
               #t))
            forward-declaration
@@ -152,13 +193,13 @@
            (define (supported-name self-name . syms)
              (define (bad-sym sym)
                (raise-argument-error 'supported-name
-                                     (format "~s" '(or/c 'method-name ...))
+                                     (format "~s" '(or/c 'method-name+ ...))
                                      sym))
              (cond
                [(fast-pred-name self-name)
                 (for/and ([sym (in-list syms)])
                   (case sym
-                    [(method-name) (procedure? fast-by-type)]
+                    [(method-name+) (procedure? fast-by-type+)]
                     ...
                     [else (bad-sym sym)]))]
                ...
@@ -166,14 +207,14 @@
                 (define table (accessor-name self-name))
                 (for/and ([sym (in-list syms)])
                   (case sym
-                    [(method-name)
-                     (procedure? (vector-ref table 'method-index))]
+                    [(method-name+)
+                     (procedure? (vector-ref table 'method-index+))]
                     ...
                     [else (bad-sym sym)]))]
                [(default-pred-name self-name)
                 (for/and ([sym (in-list syms)])
                   (case sym
-                    [(method-name) (procedure? default-by-type)]
+                    [(method-name+) (procedure? default-by-type+)]
                     ...
                     [else (bad-sym sym)]))]
                ...
@@ -199,13 +240,13 @@
            (define fast-disp-name fast-disp-expr) ...
            (define default-pred-name default-pred) ...
            (define default-disp-name default-disp-expr) ...
-           (define-values (fast-by-type ...)
+           (define-values (fast-by-type+ ...)
              (generic-methods generic-name fast-defn ...))
            ...
-           (define-values (default-by-type ...)
+           (define-values (default-by-type+ ...)
              (generic-methods generic-name default-defn ...))
            ...
-           (define-values (fallback ...)
+           (define-values (fallback+ ...)
              (generic-methods generic-name fallback-defn ...))))]))
 
 (define-syntax (define-primitive-generics stx)

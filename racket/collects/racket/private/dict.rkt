@@ -428,6 +428,7 @@
    (define dict-clear fallback-clear)
    (define dict-clear! fallback-clear!)]
   #:derive-properties ()
+  #:extends []
   (dict-ref  dict key [default])
   (dict-set! dict key val)
   (dict-set  dict key val)
