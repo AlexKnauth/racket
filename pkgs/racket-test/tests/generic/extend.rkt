@@ -1,6 +1,8 @@
 #lang racket/base
 
-(require racket/generic rackunit)
+(require racket/generic rackunit racket/private/generic-methods
+         syntax/macro-testing
+         (for-syntax racket/base syntax/parse))
 
 (define-generics getter
   (get getter target))
@@ -9,11 +11,11 @@
   (has? pattern target)
   #:extends gen:getter)
 
-(struct car* ()
-  #:methods gen:pattern
-  [(define (has? this target) (pair? target))
-   (define (get this target) (car target))])
+(generic-methods
+ gen:pattern
+ (define (has? this target) (pair? target))) ; this works fine
 
-(check-false (has? (car*) 1) #f)
-(check-true (has? (car*) '(1 . 2)) #t)
-(check-equal? (get (car*) '(1 . 2)) 1)
+(convert-compile-time-error
+ (generic-methods
+  gen:pattern
+  (define (get this target) (car target)))) ; this gives an ambiguous binding error
