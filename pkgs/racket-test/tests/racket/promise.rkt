@@ -215,6 +215,7 @@
 
 (provide promise-tests)
 (module+ main (promise-tests))
+(module+ test (promise-tests))
 (define (promise-tests)
   (test do (test-syntax)
         do (test-types)
