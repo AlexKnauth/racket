@@ -182,10 +182,10 @@
           (force p) => 99
           (format "~a" p) => "#<promise!99>")))
 
-(define (test-delay*)
+(define (test-delayA)
   ;; normal single value
   (let ([i 0])
-    (define p (delay* (set! i (add1 i)) i))
+    (define p (delayA (set! i (add1 i)) i))
     (test i => 0
           (force p) => 1
           i => 1
@@ -194,7 +194,7 @@
           i => 1))
   ;; multiple values
   (let ([i 0])
-    (define p (delay* (set! i (add1 i)) (values 1 2)))
+    (define p (delayA (set! i (add1 i)) (values 1 2)))
     (test i => 0
           (force p) =error> "result arity mismatch"
           i => 1
@@ -204,7 +204,7 @@
           i => 1))
   ;; exceptions
   (let ([i 0])
-    (define p (delay* (set! i (add1 i)) (error "I'm an error")))
+    (define p (delayA (set! i (add1 i)) (error "I'm an error")))
     (test i => 0
           (force p) =error> "I'm an error"
           i => 1
@@ -226,7 +226,7 @@
         do (test-delay/strict)
         do (test-delay/sync)
         do (test-delay/thread)
-        do (test-delay*)
+        do (test-delayA)
         ;; misc tests
         (let ([x (lazy (delay 1))]) (force x) (force x)) => 1
         ))

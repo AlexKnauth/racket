@@ -216,9 +216,9 @@
 ;; A lighter-weight version of delay that doesn't care about multiple values or
 ;; exceptions
 
-;; force/delay* : Delay*-Promise -> Any
+;; force/delayA : delayA-Promise -> Any
 ;; only deals with one value and doesn't care about exceptions
-(define (force/delay* promise)
+(define (force/delayA promise)
   (let ([v (pref promise)])
     (cond [(pair? v)
            (car v)]
@@ -227,12 +227,12 @@
            (let ([v (v)])
              (pset! promise (list v))
              v)]
-          [else (error 'force "delay* promise with invalid contents: ~e" v)])))
+          [else (error 'force "delayA promise with invalid contents: ~e" v)])))
 
-(define-struct (delay*-promise promise) ()
-  #:property prop:force force/delay*)
+(define-struct (delayA-promise promise) ()
+  #:property prop:force force/delayA)
 
-(provide (rename-out [delay** delay*]))
-(define delay* make-delay*-promise)
-(define-syntax (delay** stx) (make-delayer stx #'delay* '()))
+(provide (rename-out [delayA* delayA]))
+(define delayA make-delayA-promise)
+(define-syntax (delayA* stx) (make-delayer stx #'delayA '()))
 
