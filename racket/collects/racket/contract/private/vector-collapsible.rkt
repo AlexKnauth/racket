@@ -68,7 +68,7 @@
     [(base-vector/c? ctc)
      (vector-first-order-check
       (base-vector/c-immutable ctc)
-      (length (base-vector/c-elems ctc))
+      (length (base-vector/c-elems-w ctc))
       blame
       #f)]))
 

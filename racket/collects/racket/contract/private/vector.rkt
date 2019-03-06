@@ -36,9 +36,13 @@
                    new-args))])))
 
 (define (vectorof-name c)
-  (let ([immutable (base-vectorof-immutable c)])
+  (let ([immutable (base-vectorof-immutable c)]
+        [elem-w (base-vectorof-elem-w c)]
+        [elem-r (base-vectorof-elem-r c)])
+    (unless (equal? elem-w elem-r)
+      (error 'vectorof-name "TODO"))
     (apply build-compound-type-name 'vectorof
-           (contract-name (base-vectorof-elem c))
+           (contract-name elem-w)
            (append
             (if (and (flat-vectorof? c)
                      (not (eq? immutable #t)))
@@ -98,27 +102,32 @@
                           val)])))
 
 (define (vectorof-first-order ctc)
-  (let ([elem-ctc (base-vectorof-elem ctc)]
+  (let ([elem-ctc (base-vectorof-elem-r ctc)]
         [immutable (base-vectorof-immutable ctc)])
     (λ (val)
       (check-vectorof elem-ctc immutable val #f #f #t #f))))
 
 (define (vectorof-stronger this that)
-  (define this-elem (base-vectorof-elem this))
+  (define this-elem-w (base-vectorof-elem-w this))
+  (define this-elem-r (base-vectorof-elem-r this))
   (define this-immutable (base-vectorof-immutable this))
   (cond
     [(base-vectorof? that)
-     (define that-elem (base-vectorof-elem that))
+     (define that-elem-w (base-vectorof-elem-w that))
+     (define that-elem-r (base-vectorof-elem-r that))
      (define that-immutable (base-vectorof-immutable that))
      (cond
        [(and (equal? this-immutable #t)
              (equal? that-immutable #t))
-        (contract-struct-stronger? this-elem that-elem)]
+        ; r is covariant
+        (contract-struct-stronger? this-elem-r that-elem-r)]
        [else
         (and (or (equal? that-immutable 'dont-care)
                  (equal? this-immutable that-immutable))
-             (contract-struct-stronger? this-elem that-elem)
-             (contract-struct-stronger? that-elem this-elem))])]
+             ; r is covariant
+             (contract-struct-stronger? this-elem-r that-elem-r)
+             ; w is contravariant
+             (contract-struct-stronger? that-elem-w this-elem-w))])]
     [else #f]))
 
 (define (vectorof-equivalent this that)
@@ -126,8 +135,10 @@
     [(base-vectorof? that)
      (and (equal? (base-vectorof-immutable this)
                   (base-vectorof-immutable that))
-          (contract-struct-equivalent? (base-vectorof-elem this)
-                                       (base-vectorof-elem that)))]
+          (contract-struct-equivalent? (base-vectorof-elem-w this)
+                                       (base-vectorof-elem-w that))
+          (contract-struct-equivalent? (base-vectorof-elem-r this)
+                                       (base-vectorof-elem-r that)))]
     [else #f]))
 
 (define-struct (flat-vectorof base-vectorof) ()
@@ -139,7 +150,14 @@
    #:first-order vectorof-first-order
    #:late-neg-projection (λ (ctc)
                            (define check (check-late-neg-vectorof ctc))
-                           (define vfp (get/build-late-neg-projection (base-vectorof-elem ctc)))
+                           ;; TODO: allow elems-w and elems-r to be different
+                           ;;       w for checking writes, r for checking reads
+                           (define elem-w (base-vectorof-elem-w ctc))
+                           (define elem-r (base-vectorof-elem-r ctc))
+                           (unless (equal? elem-w elem-r)
+                             (error 'vectorof "TODO"))
+                           (define elem elem-w)
+                           (define vfp (get/build-late-neg-projection elem))
                            (λ (blame)
                              (define ele-blame (blame-add-element-of-context blame))
                              (define vfp+blame (vfp ele-blame))
@@ -158,7 +176,13 @@
   (define chaperone-or-impersonate-vector
     (if chap-not-imp? chaperone-vector impersonate-vector))
   (λ (ctc)
-    (define elem-ctc (base-vectorof-elem ctc))
+    ;; TODO: allow elem-w and elem-r to be different
+    ;;       use w for checking writes, r for checking reads
+    (define elem-w (base-vectorof-elem-w ctc))
+    (define elem-r (base-vectorof-elem-r ctc))
+    (unless (equal? elem-w elem-r)
+      (error 'vectorof "TODO"))
+    (define elem-ctc elem-w)
     (define flat-subcontract? (flat-contract-struct? elem-ctc))
     (define eager (base-vectorof-eager ctc))
     (define immutable (base-vectorof-immutable ctc))
@@ -374,20 +398,24 @@
          (and (equal? immutable #t)
               (equal? eager #t)
               (flat-contract? ctc)))
-     (make-flat-vectorof ctc immutable eager)]
+     (make-flat-vectorof ctc ctc immutable eager)]
     [(chaperone-contract? ctc)
-     (make-chaperone-vectorof ctc immutable eager)]
+     (make-chaperone-vectorof ctc ctc immutable eager)]
     [else
-     (make-impersonator-vectorof ctc immutable eager)]))
+     (make-impersonator-vectorof ctc ctc immutable eager)]))
 
 (define/subexpression-pos-prop (vector-immutableof c)
   (vectorof c #:immutable #t))
 
 (define (vector/c-name c)
-  (let ([immutable (base-vector/c-immutable c)])
+  (let ([immutable (base-vector/c-immutable c)]
+        [elems-w (base-vector/c-elems-w c)]
+        [elems-r (base-vector/c-elems-r c)])
+    (unless (equal? elems-w elems-r)
+      (error 'vector/c-name "TODO"))
     (apply build-compound-type-name 'vector/c
            (append
-            (map contract-name (base-vector/c-elems c))
+            (map contract-name elems-w)
             (if (and (flat-vector/c? c)
                      (not (eq? immutable #t)))
                 (list '#:flat? #t)
@@ -397,7 +425,7 @@
                 null)))))
 
 (define (vector/c-first-order ctc)
-  (define elem-ctcs (base-vector/c-elems ctc))
+  (define elem-ctcs (base-vector/c-elems-r ctc))
   (define immutable (base-vector/c-immutable ctc))
   (λ (val)
     (and (vector? val)
@@ -411,40 +439,55 @@
            (contract-first-order-passes? c e)))))
 
 (define (vector/c-stronger this that)
-  (define this-elems (base-vector/c-elems this))
+  (define this-elems-w (base-vector/c-elems-w this))
+  (define this-elems-r (base-vector/c-elems-r this))
   (define this-immutable (base-vector/c-immutable this))
   (cond
     [(base-vector/c? that)
-     (define that-elems (base-vector/c-elems that))
+     (define that-elems-w (base-vector/c-elems-w that))
+     (define that-elems-r (base-vector/c-elems-r that))
      (define that-immutable (base-vector/c-immutable that))
      (cond
        [(and (equal? this-immutable #t)
              (equal? that-immutable #t))
-        (and (= (length this-elems) (length that-elems))
-             (for/and ([this-elem (in-list this-elems)]
-                       [that-elem (in-list that-elems)])
-               (contract-struct-stronger? this-elem that-elem)))]
+        (and (= (length this-elems-r) (length that-elems-r))
+             (for/and ([this-elem-r (in-list this-elems-r)]
+                       [that-elem-r (in-list that-elems-r)])
+               ;; r is covariant
+               (contract-struct-stronger? this-elem-r that-elem-r)))]
        [(or (equal? that-immutable 'dont-care)
             (equal? this-immutable that-immutable))
-        (and (= (length this-elems) (length that-elems))
-             (for/and ([this-elem (in-list this-elems)]
-                       [that-elem (in-list that-elems)])
-               (and (contract-struct-stronger? this-elem that-elem)
-                    (contract-struct-stronger? that-elem this-elem))))]
+        (and (= (length this-elems-w) (length that-elems-w)
+                (length this-elems-r) (length that-elems-r))
+             (for/and ([this-elem-w (in-list this-elems-w)]
+                       [this-elem-r (in-list this-elems-r)]
+                       [that-elem-w (in-list that-elems-w)]
+                       [that-elem-r (in-list that-elems-r)])
+               (and
+                ;; r is covariant
+                (contract-struct-stronger? this-elem-r that-elem-r)
+                ;; w is contravariant
+                (contract-struct-stronger? that-elem-w this-elem-w))))]
        [else #f])]
     [(base-vectorof? that)
-     (define that-elem (base-vectorof-elem that))
+     (define that-elem-w (base-vectorof-elem-w that))
+     (define that-elem-r (base-vectorof-elem-r that))
      (define that-immutable (base-vectorof-immutable that))
      (cond
        [(and (equal? this-immutable #t)
              (equal? that-immutable #t))
-        (for/and ([this-elem (in-list this-elems)])
-          (contract-struct-stronger? this-elem that-elem))]
+        (for/and ([this-elem-r (in-list this-elems-w)])
+          ;; r is covariant
+          (contract-struct-stronger? this-elem-r that-elem-r))]
        [(or (equal? that-immutable 'dont-care)
             (equal? this-immutable that-immutable))
-        (for/and ([this-elem (in-list this-elems)])
-          (and (contract-struct-stronger? this-elem that-elem)
-               (contract-struct-stronger? that-elem this-elem)))]
+        (for/and ([this-elem-w (in-list this-elems-w)]
+                  [this-elem-r (in-list this-elems-r)])
+          (and
+           ;; r is covariant
+           (contract-struct-stronger? this-elem-r that-elem-r)
+           ;; w is contravariant
+           (contract-struct-stronger? that-elem-w this-elem-w)))]
        [else #f])]
     [else #f]))
 
@@ -453,8 +496,10 @@
     [(base-vector/c? that)
      (and (equal? (base-vector/c-immutable this)
                   (base-vector/c-immutable that))
-          (pairwise-equivalent-contracts? (base-vector/c-elems this)
-                                          (base-vector/c-elems that)))]
+          (pairwise-equivalent-contracts? (base-vector/c-elems-w this)
+                                          (base-vector/c-elems-w that))
+          (pairwise-equivalent-contracts? (base-vector/c-elems-r this)
+                                          (base-vector/c-elems-r that)))]
     [else #f]))
 
 (define-struct (flat-vector/c base-vector/c) ()
@@ -468,7 +513,11 @@
    #:equivalent vector/c-equivalent
    #:late-neg-projection
    (λ (ctc)
-     (define elems (base-vector/c-elems ctc))
+     ;; TODO: allow elems-w and elems-r to be different
+     ;;       use w for checking writes, r for checking reads
+     (define elems-w (base-vector/c-elems-w ctc))
+     (define elems-r (base-vector/c-elems-r ctc))
+     (define elems elems-w)
      (define immutable (base-vector/c-immutable ctc))
      (λ (blame)
        (define blame+ctxt (blame-add-element-of-context blame))
@@ -485,7 +534,13 @@
 (define (vector/c-collapsible-late-neg-ho-projection chap-not-imp?)
   (define vector-wrapper (if chap-not-imp? chaperone-vector impersonate-vector))
   (λ (ctc)
-    (define elem-ctcs (base-vector/c-elems ctc))
+    ;; TODO: allow elems-w and elems-r to be different
+    ;;       use w for checking writes, r for checking reads
+    (define elems-w (base-vector/c-elems-w ctc))
+    (define elems-r (base-vector/c-elems-r ctc))
+    (unless (equal? elems-w elems-r)
+      (error 'vector/c "TODO"))
+    (define elem-ctcs elems-w)
     (define immutable (base-vector/c-immutable ctc))
     (define elems-length (length elem-ctcs))
     (define selnps
@@ -694,11 +749,11 @@
       [(or flat?
            (and (eq? immutable #t)
                 (andmap flat-contract? ctcs)))
-       (make-flat-vector/c ctcs immutable)]
+       (make-flat-vector/c ctcs ctcs immutable)]
       [(andmap chaperone-contract? ctcs)
-       (make-chaperone-vector/c ctcs immutable)]
+       (make-chaperone-vector/c ctcs ctcs immutable)]
       [else
-       (make-impersonator-vector/c ctcs immutable)])))
+       (make-impersonator-vector/c ctcs ctcs immutable)])))
 
 (define/subexpression-pos-prop (vector-immutable/c . args)
   (apply vector/c args #:immutable #t))

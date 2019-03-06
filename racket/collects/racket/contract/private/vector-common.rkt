@@ -7,13 +7,19 @@
          do-check-vectorof
          check-vector/c)
 
+;; Vector contracts need to guard element values on both reads and writes.
+;; These contracts allow it to use a different contracts for those two modes.
+;; The `write` element-contract is contravariant, and the `read`
+;; element-contract is covariant.
+;; These are distinguished by either a `-w` or a `-r` on the end.
+
 ;; eager is one of:
 ;; - #t: always perform an eager check of the elements of an immutable vector
 ;; - #f: never  perform an eager check of the elements of an immutable vector
 ;; - N (for N>=0): perform an eager check of immutable vectors size <= N
-(define-struct base-vectorof (elem immutable eager))
+(define-struct base-vectorof (elem-w elem-r immutable eager))
 
-(define-struct base-vector/c (elems immutable))
+(define-struct base-vector/c (elems-w elems-r immutable))
 
 
 (define (do-check-vectorof val immutable blame neg-party raise-blame?)
