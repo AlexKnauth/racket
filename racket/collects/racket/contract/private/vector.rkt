@@ -37,7 +37,7 @@
 
 (define (vectorof-name c)
   (let ([immutable (base-vectorof-immutable c)])
-    (apply build-compound-type-name 'vectorof 
+    (apply build-compound-type-name 'vectorof
            (contract-name (base-vectorof-elem c))
            (append
             (if (and (flat-vectorof? c)
@@ -76,7 +76,7 @@
   (define immutable (base-vectorof-immutable c))
   (λ (val blame neg-party)
     (cond
-      [(vector? val) 
+      [(vector? val)
        (cond
          [(eq? immutable #t)
           (cond
@@ -86,7 +86,7 @@
                                 val '(expected "an immutable vector" given: "~e") val)])]
          [(eq? immutable #f)
           (cond
-            [(immutable? val) 
+            [(immutable? val)
              (raise-blame-error blame #:missing-party neg-party
                                 val '(expected "a mutable vector" given: "~e") val)]
             [else #f])]
@@ -94,7 +94,7 @@
       [else
        (raise-blame-error blame #:missing-party neg-party
                           val
-                          '(expected "a vector," given: "~e") 
+                          '(expected "a vector," given: "~e")
                           val)])))
 
 (define (vectorof-first-order ctc)
@@ -137,7 +137,7 @@
    #:trusted trust-me
    #:name vectorof-name
    #:first-order vectorof-first-order
-   #:late-neg-projection (λ (ctc) 
+   #:late-neg-projection (λ (ctc)
                            (define check (check-late-neg-vectorof ctc))
                            (define vfp (get/build-late-neg-projection (base-vectorof-elem ctc)))
                            (λ (blame)
@@ -470,7 +470,7 @@
    (λ (ctc)
      (define elems (base-vector/c-elems ctc))
      (define immutable (base-vector/c-immutable ctc))
-     (λ (blame) 
+     (λ (blame)
        (define blame+ctxt (blame-add-element-of-context blame))
        (define val+np-acceptors
          (for/list ([c (in-list elems)])
@@ -577,7 +577,7 @@
                    blame+neg-party
                  (define elem-neg-projs (car (fetch-tc-neg)))
                  ((vector-ref elem-neg-projs i) val neg-party))))]))
-      
+
       (define late-neg-proj
         (λ (val neg-party)
           (define old-c-c-prop (get-impersonator-prop:collapsible val #f))

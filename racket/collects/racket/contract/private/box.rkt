@@ -28,7 +28,7 @@
 (define (check-box/c-np ctc val blame)
   (define immutable (base-box/c-immutable ctc))
   (cond
-    [(box? val) 
+    [(box? val)
      (case immutable
        [(#t)
         (cond
@@ -176,7 +176,7 @@
             [else
              (if (and (immutable? val) (not (chaperone? val)))
                  (box-immutable (pos-elem-r-proj (unbox val) neg-party))
-                 (chaperone/impersonate-box 
+                 (chaperone/impersonate-box
                   val
                   (λ (b v)
                     (with-contract-continuation-mark
