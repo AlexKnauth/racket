@@ -39,11 +39,12 @@
   (let ([immutable (base-vectorof-immutable c)]
         [elem-w (base-vectorof-elem-w c)]
         [elem-r (base-vectorof-elem-r c)])
-    (unless (equal? elem-w elem-r)
-      (error 'vectorof-name "TODO"))
     (apply build-compound-type-name 'vectorof
            (contract-name elem-w)
            (append
+            (if (not (equal? elem-w elem-r))
+                (list (contract-name elem-r))
+                null)
             (if (and (flat-vectorof? c)
                      (not (eq? immutable #t)))
                 (list '#:flat? #t)
@@ -52,7 +53,8 @@
                 (list '#:immutable immutable)
                 null)))))
 
-(define (check-vectorof elem-ctc immutable val blame neg-party first-order? raise-blame?)
+;; check-vectorof only does first-order checks, so it only uses read
+(define (check-vectorof elem-r-ctc immutable val blame neg-party first-order? raise-blame?)
   (and
    (do-check-vectorof val immutable blame neg-party raise-blame?)
    (if first-order?
@@ -62,7 +64,7 @@
            [else
             (define e (vector-ref val n))
             (cond
-              [(contract-first-order-passes? elem-ctc e)
+              [(contract-first-order-passes? elem-r-ctc e)
                (contract-first-order-try-less-hard (loop (+ n 1)))]
               [raise-blame?
                (raise-blame-error
@@ -70,7 +72,7 @@
                 #:missing-party neg-party
                 val
                 '(expected: "~s for element ~s" given: "~e")
-                (contract-name elem-ctc)
+                (contract-name elem-r-ctc)
                 n
                 e)]
               [else #f])]))
@@ -102,10 +104,10 @@
                           val)])))
 
 (define (vectorof-first-order ctc)
-  (let ([elem-ctc (base-vectorof-elem-r ctc)]
+  (let ([elem-r-ctc (base-vectorof-elem-r ctc)]
         [immutable (base-vectorof-immutable ctc)])
     (λ (val)
-      (check-vectorof elem-ctc immutable val #f #f #t #f))))
+      (check-vectorof elem-r-ctc immutable val #f #f #t #f))))
 
 (define (vectorof-stronger this that)
   (define this-elem-w (base-vectorof-elem-w this))
@@ -150,21 +152,16 @@
    #:first-order vectorof-first-order
    #:late-neg-projection (λ (ctc)
                            (define check (check-late-neg-vectorof ctc))
-                           ;; TODO: allow elems-w and elems-r to be different
-                           ;;       w for checking writes, r for checking reads
-                           (define elem-w (base-vectorof-elem-w ctc))
+                           ;; flat, only read mode
                            (define elem-r (base-vectorof-elem-r ctc))
-                           (unless (equal? elem-w elem-r)
-                             (error 'vectorof "TODO"))
-                           (define elem elem-w)
-                           (define vfp (get/build-late-neg-projection elem))
+                           (define vfp-r (get/build-late-neg-projection elem-r))
                            (λ (blame)
                              (define ele-blame (blame-add-element-of-context blame))
-                             (define vfp+blame (vfp ele-blame))
+                             (define vfp-r+blame (vfp-r ele-blame))
                              (λ (val neg-party)
                                (check val blame neg-party)
                                (for ([x (in-vector val)])
-                                 (vfp+blame x neg-party))
+                                 (vfp-r+blame x neg-party))
                                val)))
    #:equivalent vectorof-equivalent
    #:stronger vectorof-stronger))
@@ -176,22 +173,20 @@
   (define chaperone-or-impersonate-vector
     (if chap-not-imp? chaperone-vector impersonate-vector))
   (λ (ctc)
-    ;; TODO: allow elem-w and elem-r to be different
-    ;;       use w for checking writes, r for checking reads
     (define elem-w (base-vectorof-elem-w ctc))
     (define elem-r (base-vectorof-elem-r ctc))
-    (unless (equal? elem-w elem-r)
-      (error 'vectorof "TODO"))
-    (define elem-ctc elem-w)
-    (define flat-subcontract? (flat-contract-struct? elem-ctc))
+    (define flat-subcontract?
+      (and (flat-contract-struct? elem-w) (flat-contract-struct? elem-r)))
     (define eager (base-vectorof-eager ctc))
     (define immutable (base-vectorof-immutable ctc))
-    (define vfp (get/build-collapsible-late-neg-projection elem-ctc))
+    (define vfp-w (get/build-collapsible-late-neg-projection elem-w))
+    (define vfp-r (get/build-collapsible-late-neg-projection elem-r))
     (λ (blame)
+      ;; use vfp-r for pos blame, use vfp-w for neg blame
       (define pos-blame (blame-add-element-of-context blame))
       (define neg-blame (blame-add-element-of-context blame #:swap? #t))
       (define-values (filled? maybe-elem-pos-proj maybe-c-c-pos maybe-elem-neg-proj maybe-c-c-neg)
-        (contract-pos/neg-doubling.2 (vfp pos-blame) (vfp neg-blame)))
+        (contract-pos/neg-doubling.2 (vfp-r pos-blame) (vfp-w neg-blame)))
       (define-values (fetch-tc-pos fetch-tc-neg)
         (cond
           [filled? (values #f #f)]
@@ -250,11 +245,11 @@
                    blame+neg-party
                  (define elem-neg-proj (car (fetch-tc-neg)))
                  (elem-neg-proj val neg-party))))]))
-      (define p? (and (flat-contract-struct? elem-ctc)
-                      (flat-contract-predicate elem-ctc)))
+      (define p-r? (and (flat-contract-struct? elem-r)
+                        (flat-contract-predicate elem-r)))
       (define late-neg-proj
         (λ (val neg-party)
-          (check-vectorof elem-ctc immutable val blame neg-party #f #t)
+          (check-vectorof elem-r immutable val blame neg-party #f #t)
           (define immutable-non-chaperone?
             (and (immutable? val) (not (chaperone? val))))
           ;; avoid traversing large vectors
@@ -268,7 +263,7 @@
                                        maybe-elem-pos-proj
                                        (car (fetch-tc-pos))))
              (for ([e (in-vector val)])
-               (unless (p? e)
+               (unless (p-r? e)
                  (elem-pos-proj e neg-party)))
              val]
             [(and (not flat-subcontract?) immutable-non-chaperone?)
@@ -513,19 +508,16 @@
    #:equivalent vector/c-equivalent
    #:late-neg-projection
    (λ (ctc)
-     ;; TODO: allow elems-w and elems-r to be different
-     ;;       use w for checking writes, r for checking reads
-     (define elems-w (base-vector/c-elems-w ctc))
+     ;; flat, only read
      (define elems-r (base-vector/c-elems-r ctc))
-     (define elems elems-w)
      (define immutable (base-vector/c-immutable ctc))
      (λ (blame)
        (define blame+ctxt (blame-add-element-of-context blame))
        (define val+np-acceptors
-         (for/list ([c (in-list elems)])
+         (for/list ([c (in-list elems-r)])
            ((get/build-late-neg-projection c) blame+ctxt)))
        (λ (val neg-party)
-         (check-vector/c val blame immutable (length elems) neg-party)
+         (check-vector/c val blame immutable (length elems-r) neg-party)
          (for ([e (in-vector val)]
                [p (in-list val+np-acceptors)])
            (p e neg-party))
@@ -534,25 +526,24 @@
 (define (vector/c-collapsible-late-neg-ho-projection chap-not-imp?)
   (define vector-wrapper (if chap-not-imp? chaperone-vector impersonate-vector))
   (λ (ctc)
-    ;; TODO: allow elems-w and elems-r to be different
-    ;;       use w for checking writes, r for checking reads
     (define elems-w (base-vector/c-elems-w ctc))
     (define elems-r (base-vector/c-elems-r ctc))
-    (unless (equal? elems-w elems-r)
-      (error 'vector/c "TODO"))
-    (define elem-ctcs elems-w)
     (define immutable (base-vector/c-immutable ctc))
-    (define elems-length (length elem-ctcs))
-    (define selnps
-      (for/list ([elem-ctc (in-list elem-ctcs)])
-        (get/build-collapsible-late-neg-projection elem-ctc)))
+    (define elems-length (length elems-w))
+    (define selnps-w
+      (for/list ([elem-w (in-list elems-w)])
+        (get/build-collapsible-late-neg-projection elem-w)))
+    (define selnps-r
+      (for/list ([elem-r (in-list elems-r)])
+        (get/build-collapsible-late-neg-projection elem-r)))
     (λ (blame)
       (define-values (filled? maybe-elem-pos-projs maybe-c-c-poss maybe-elem-neg-projs maybe-c-c-negs)
         (contract-pos/neg-doubling.2
          (let ()
+           ;; pos blame, r contract
            (define elem-pos-projs (make-vector elems-length #f))
            (define elem-c-c-poss (make-vector elems-length #f))
-           (for ([selnp (in-list selnps)]
+           (for ([selnp (in-list selnps-r)]
                  [i (in-naturals)])
              (define pos-blame (blame-add-context blame (nth-element-of i)))
              (define-values (elem-pos-proj elem-c-c-pos) (selnp pos-blame))
@@ -560,9 +551,10 @@
              (vector-set! elem-c-c-poss i elem-c-c-pos))
            (values elem-pos-projs elem-c-c-poss))
          (let ()
+           ;; neg blame, w contract
            (define elem-neg-projs (make-vector elems-length #f))
            (define elem-c-c-negs (make-vector elems-length #f))
-           (for ([selnp (in-list selnps)]
+           (for ([selnp (in-list selnps-w)]
                  [i (in-naturals)])
              (define neg-blame (blame-add-context blame (nth-element-of i)
                                                   #:swap? #t))
