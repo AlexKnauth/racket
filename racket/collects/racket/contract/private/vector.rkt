@@ -11,7 +11,8 @@
          "vector-collapsible.rkt")
 
 (provide (rename-out [wrap-vectorof vectorof]
-                     [wrap-vector/c vector/c])
+                     [wrap-vector/c vector/c]
+                     [wrap-vector*/c vector*/c])
          vector-immutable/c vector-immutableof)
 
 (define-for-syntax (convert-args args this-one)
@@ -371,14 +372,17 @@
           'racket/contract:contract
           (vector this-one (list #'vecof) null))))]))
 
-(define/subexpression-pos-prop (vectorof c
+(define/subexpression-pos-prop (vectorof c-w
+                                         [c-r c-w]
                                          #:immutable [immutable 'dont-care]
                                          #:flat? [flat? #f]
                                          #:eager [eager #t])
-  (define ctc
+  (define-values [ctc-w ctc-r]
     (if flat?
-        (coerce-flat-contract 'vectorof c)
-        (coerce-contract 'vectorof c)))
+        (values (coerce-flat-contract 'vectorof c-w)
+                (coerce-flat-contract 'vectorof c-r))
+        (values (coerce-contract 'vectorof c-w)
+                (coerce-contract 'vectorof c-r))))
   (unless (or (boolean? eager)
               (exact-nonnegative-integer? eager))
     (raise-argument-error 'vectorof
@@ -392,12 +396,14 @@
     [(or (and flat? (equal? eager #t))
          (and (equal? immutable #t)
               (equal? eager #t)
-              (flat-contract? ctc)))
-     (make-flat-vectorof ctc ctc immutable eager)]
-    [(chaperone-contract? ctc)
-     (make-chaperone-vectorof ctc ctc immutable eager)]
+              (flat-contract? ctc-w)
+              (flat-contract? ctc-r)))
+     (make-flat-vectorof ctc-w ctc-r immutable eager)]
+    [(and (chaperone-contract? ctc-w)
+          (chaperone-contract? ctc-r))
+     (make-chaperone-vectorof ctc-w ctc-r immutable eager)]
     [else
-     (make-impersonator-vectorof ctc ctc immutable eager)]))
+     (make-impersonator-vectorof ctc-w ctc-r immutable eager)]))
 
 (define/subexpression-pos-prop (vector-immutableof c)
   (vectorof c #:immutable #t))
@@ -406,18 +412,30 @@
   (let ([immutable (base-vector/c-immutable c)]
         [elems-w (base-vector/c-elems-w c)]
         [elems-r (base-vector/c-elems-r c)])
-    (unless (equal? elems-w elems-r)
-      (error 'vector/c-name "TODO"))
-    (apply build-compound-type-name 'vector/c
-           (append
-            (map contract-name elems-w)
-            (if (and (flat-vector/c? c)
-                     (not (eq? immutable #t)))
-                (list '#:flat? #t)
-                null)
-            (if (not (eq? immutable 'dont-care))
-                (list '#:immutable immutable)
-                null)))))
+    (cond
+      [(equal? elems-w elems-r)
+       (apply build-compound-type-name 'vector/c
+              (append
+               (map contract-name elems-w)
+               (if (and (flat-vector/c? c)
+                        (not (eq? immutable #t)))
+                   (list '#:flat? #t)
+                   null)
+               (if (not (eq? immutable 'dont-care))
+                   (list '#:immutable immutable)
+                   null)))]
+      [else
+       (apply build-compound-type-name 'vector*/c
+              (cons 'list (map contract-name elems-w))
+              (cons 'list (map contract-name elems-r))
+              (append
+               (if (and (flat-vector/c? c)
+                        (not (eq? immutable #t)))
+                   (list '#:flat? #t)
+                   null)
+               (if (not (eq? immutable 'dont-care))
+                   (list '#:immutable immutable)
+                   null)))])))
 
 (define (vector/c-first-order ctc)
   (define elem-ctcs (base-vector/c-elems-r ctc))
@@ -733,19 +751,52 @@
           'racket/contract:contract
           (vector this-one (list #'vec/c) null))))]))
 
+(define-syntax (wrap-vector*/c stx)
+  (syntax-case stx ()
+    [x
+     (identifier? #'x)
+     (syntax-property
+      (syntax/loc stx vector*/c)
+      'racket/contract:contract
+      (vector (gensym 'ctc) (list #'x) null))]
+    [(vec*/c arg ...)
+     (let ([args (syntax->list #'(arg ...))]
+           [this-one (gensym 'vector*/c-ctc)])
+       (with-syntax ([(new-arg ...) (convert-args args this-one)])
+         (syntax-property
+          (syntax/loc stx
+            (vector*/c new-arg ...))
+          'racket/contract:contract
+          (vector this-one (list #'vec*/c) null))))]))
+
+(define (vector*/c #:immutable [immutable 'dont-care] #:flat? [flat? #f]
+                   cs-w
+                   [cs-r cs-w])
+  (unless (= (length cs-w) (length cs-r))
+    (error 'vector*/c
+           "expected two lists of the same length, given ~v and ~v"
+           cs-w
+           cs-r))
+  (define-values [ctcs-w ctcs-r]
+    (if flat?
+        (values (map (λ (c) (coerce-flat-contract 'vector/c c)) cs-w)
+                (map (λ (c) (coerce-flat-contract 'vector/c c)) cs-r))
+        (values (map (λ (c) (coerce-contract 'vector/c c)) cs-w)
+                (map (λ (c) (coerce-contract 'vector/c c)) cs-r))))
+  (cond
+    [(or flat?
+         (and (eq? immutable #t)
+              (andmap flat-contract? ctcs-w)
+              (andmap flat-contract? ctcs-r)))
+     (make-flat-vector/c ctcs-w ctcs-r immutable)]
+    [(and (andmap chaperone-contract? ctcs-w)
+          (andmap chaperone-contract? ctcs-r))
+     (make-chaperone-vector/c ctcs-w ctcs-r immutable)]
+    [else
+     (make-impersonator-vector/c ctcs-w ctcs-r immutable)]))
+
 (define (vector/c #:immutable [immutable 'dont-care] #:flat? [flat? #f] . cs)
-  (let ([ctcs (if flat?
-                  (map (λ (c) (coerce-flat-contract 'vector/c c)) cs)
-                  (map (λ (c) (coerce-contract 'vector/c c)) cs))])
-    (cond
-      [(or flat?
-           (and (eq? immutable #t)
-                (andmap flat-contract? ctcs)))
-       (make-flat-vector/c ctcs ctcs immutable)]
-      [(andmap chaperone-contract? ctcs)
-       (make-chaperone-vector/c ctcs ctcs immutable)]
-      [else
-       (make-impersonator-vector/c ctcs ctcs immutable)])))
+  (vector*/c #:immutable immutable #:flat? flat? cs))
 
 (define/subexpression-pos-prop (vector-immutable/c . args)
   (apply vector/c args #:immutable #t))
