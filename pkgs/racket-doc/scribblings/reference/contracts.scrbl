@@ -446,40 +446,44 @@ This is a backwards compatibility constructor; it merely
 passes its arguments to @racket[or/c].
 }
 
-@defproc[(vectorof [c contract?]
+@defproc[(vectorof [c-in contract?]
+                   [c-out contract? c-in]
                    [#:immutable immutable (or/c #t #f 'dont-care) 'dont-care]
                    [#:flat? flat? boolean? #f]
                    [#:eager eager (or/c #t #f exact-nonnegative-integer?) #t])
          contract?]{
 Returns a @tech{contract} that recognizes vectors. The elements of the vector must
-match @racket[c].
+match @racket[c-in] when they are being set with @racket[vector-set!], and they
+must match @racket[c-out] when they are accessed with @racket[vector-ref].
 
 If the @racket[flat?] argument is @racket[#t], then the resulting contract is
-a @tech{flat contract}, and the @racket[c] argument must also be a @tech{flat contract}.  Such
-@tech{flat contracts} will be unsound if applied to mutable vectors, as they will not
-check future operations on the vector.
+a @tech{flat contract}, and the @racket[c-in] and @racket[c-out] arguments must
+also be @tech{flat contract}s. Such @tech{flat contracts} will be unsound if
+applied to mutable vectors, as they will not check future operations on the
+vector.
 
-If the @racket[immutable] argument is @racket[#t] and the @racket[c] argument is
-a @tech{flat contract} and the @racket[eager] argument is @racket[#t],
-the result will be a @tech{flat contract}.  If the @racket[c] argument
-is a @tech{chaperone contract}, then the result will be a @tech{chaperone contract}.
+If the @racket[immutable] argument is @racket[#t], the @racket[c-in] and
+@racket[c-out] arguments are @tech{flat contract}s, and the @racket[eager]
+argument is @racket[#t], the result will be a @tech{flat contract}. If the
+@racket[c-in] and @racket[c-out] arguments are @tech{chaperone contract}s,
+then the result will be a @tech{chaperone contract}.
 
 If the @racket[eager] argument is @racket[#t], then immutable vectors are
-checked eagerly when @racket[c] is a @tech{flat contract}. If the
+checked eagerly when @racket[c-out] is a @tech{flat contract}. If the
 @racket[eager] argument is a number @racket[n], then immutable vectors are checked
-eagerly when @racket[c] is a @tech{flat contract} and the length of the vector
-is less than or equal to @racket[n].}
+eagerly when @racket[c-out] is a @tech{flat contract} and the length of the vector
+is less than or equal to @racket[n].
 
 When a higher-order @racket[vectorof] contract is applied to a vector, the result
 is not @racket[eq?] to the input.  The result will be a copy for immutable vectors
 and a @tech{chaperone} or @tech{impersonator} of the input for mutable vectors,
-unless the @racket[c] argument is a @tech{flat contract} and the vector is immutable,
-in which case the result is the original vector.
+unless the @racket[c-out] argument is a @tech{flat contract} and the vector is
+immutable, in which case the result is the original vector.
 
 @history[#:changed "6.3.0.5" @list{Changed flat vector contracts to not copy
            immutable vectors.}
          #:changed "6.7.0.3" @list{Added the @racket[#:eager] option.}]
-
+}
 
 @defproc[(vector-immutableof [c contract?]) contract?]{
 
