@@ -278,9 +278,8 @@
    'dict/c15
    '(let ()
       (define h (idict 1 #f))
-      ;; TODO: change to chaperone-of? if/when chaperones get to work
-      (impersonator-of? (contract (dict/c integer? boolean?) h 'pos 'neg)
-                        h))
+      (chaperone-of? (contract (dict/c integer? boolean?) h 'pos 'neg)
+                     h))
    #t)
 
   (test/neg-blame ; unlike the hash case, this should fail and blame 'neg
@@ -311,9 +310,27 @@
       (define h (hash 1 #f))
       (define c-h
         (contract (dict/c any/c any/c) h 'pos 'neg))
-      (impersonator-of? (contract (dict/c integer? boolean?) c-h 'pos 'neg)
-                        c-h))
+      (chaperone-of? (contract (dict/c integer? boolean?) c-h 'pos 'neg)
+                     c-h))
    #t)
+
+  (test/pos-blame
+   'dict/c18
+   '(let ()
+      (define N 40)
+      (define c
+        (for/fold ([c (-> integer? integer?)])
+                  ([i (in-range N)])
+          (dict/c c integer?)))
+      (define h
+        (for/fold ([h 0])
+                  ([i (in-range N)])
+          (idict h i)))
+      (immutable-dict? h)
+
+      (for/fold ([h (contract c h 'pos 'neg)])
+                ([i (in-range N)])
+        (dict-iterate-key h (dict-iterate-first h)))))
 
   (test/no-error
    '(let ([v (chaperone-hash (make-immutable-hash (list (cons 1 2)))

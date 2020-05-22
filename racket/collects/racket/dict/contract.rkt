@@ -47,6 +47,8 @@
               (flat-contract? rng-ctc)
               (flat-contract? iter-ctc)))
      (flat-dict/c dom-ctc rng-ctc any/c immutable)]
+    [(and (chaperone-contract? rng-ctc) (chaperone-contract? iter-ctc))
+     (chaperone-dict/c dom-ctc rng-ctc iter-ctc immutable)]
     [else
      (impersonator-dict/c dom-ctc rng-ctc iter-ctc immutable)]))
 
@@ -499,6 +501,18 @@
     [dict->list (redirect- prj)]
     |#))
 
+(struct chaperone-dict/c base-dict/c ()
+  #:omit-define-syntaxes
+  #:property prop:custom-write custom-write-property-proc
+  #:property prop:chaperone-contract
+  (build-chaperone-contract-property
+   #:name dict/c-name
+   #:first-order dict/c-first-order
+   #:generate dict/c-generate
+   #:stronger dict/c-stronger
+   #:equivalent dict/c-equivalent
+   #:late-neg-projection (ho-projection #t)))
+
 (struct impersonator-dict/c base-dict/c ()
   #:omit-define-syntaxes
   #:property prop:custom-write custom-write-property-proc
@@ -621,8 +635,60 @@
                       op
                       (case-lambda #,@lam-cases))))]))])))
 
+;; redirect-ref is defined manually,
+;; not with the others in define-dict-redirect-ops,
+;; because the failure-result argument is complicated
+(define ((redirect-ref prj) op)
+  (and
+   op
+   ((if (proj-chaperone-mode? prj)
+        chaperone-procedure
+        impersonate-procedure)
+    op
+    (case-lambda
+      [(self key)
+       (values (λ (ans) (value-out prj ans))
+               self
+               (key-in prj key))]
+      [(self key default)
+       (let ([key (key-in prj key)]
+             [default (project-in prj failure-result/c default)])
+         (cond
+           [(procedure? default)
+            ;; MUTABLE!
+            (define default-called? #f)
+            (define default-result #f)
+            (values (λ (ans)
+                      (cond
+                        [(and default-called? (eq? ans default-result)) ans]
+                        [else (value-out prj ans)]))
+                    self
+                    key
+                    (chaperone-procedure
+                     default
+                     (λ ()
+                       (set! default-called? #t)
+                       (λ (ans)
+                         (set! default-result ans)
+                         ans))))]
+           [else
+            (define default-called?
+              (let/ec default-called!
+                ;; TODO:
+                ;; Is calling the function being chaperoned here evil?
+                ;; It kinda feels evil but I'm not sure.
+                (op self key (λ () (default-called! #t)))
+                #f))
+            (values (λ (ans)
+                      (cond
+                        [(and default-called? (eq? ans default)) ans]
+                        [else (value-out prj ans)]))
+                    self
+                    key
+                    default)]))]))))
+
 (define-dict-redirect-ops
-  [redirect-ref #:: [Self Key] [Default] #:-> Value]
+  ;[redirect-ref #:: [Self Key] [Default] #:-> Value]
   [redirect-set! #:: [Self Key Value] #:-> Void]
   [redirect-set #:: [Self Key Value] #:-> Dict]
   [redirect-remove! #:: [Self Key] #:-> Void]
