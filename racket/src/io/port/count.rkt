@@ -121,20 +121,28 @@
                          #:error-char #\?
                          #:abort-mode abort-mode
                          #:state state))
-        (define delta-chars (- got-chars
-                               ;; Correct for earlier increment of position
-                               ;; and column based on not-yet-decoded bytes,
-                               ;; leaving counts for still-not-decoded bytes
-                               ;; in place:
-                               (+ span
-                                  (- (if (utf-8-state? state)
-                                         (utf-8-state-pending-amt state)
-                                         0)
-                                     (if (utf-8-state? new-state)
-                                         (utf-8-state-pending-amt new-state)
-                                         0)))))
+        (define str (make-string got-chars))
+        (utf-8-decode! bstr (- i span) i
+                       str 0 #f
+                       #:error-char #\?
+                       #:abort-mode abort-mode
+                       #:state state)
+        ;; Correct for earlier increment of position
+        ;; and column based on not-yet-decoded bytes,
+        ;; leaving counts for still-not-decoded bytes
+        ;; in place:
+        (define back-up
+          (+ span
+             (- (if (utf-8-state? state)
+                    (utf-8-state-pending-amt state)
+                    0)
+                (if (utf-8-state? new-state)
+                    (utf-8-state-pending-amt new-state)
+                    0))))
+        (define delta-col (- (string-columns str) back-up))
+        (define delta-pos (- got-chars back-up))
         (define (keep-aborts s) (if (eq? s 'complete) #f s))
-        (loop i 0 line (and column (+ column delta-chars)) (and position (+ position delta-chars))
+        (loop i 0 line (and column (+ column delta-col)) (and position (+ position delta-pos))
               (keep-aborts new-state) #f))
       (cond
        [(= i end)
@@ -177,6 +185,14 @@
           ;; This is where we tentatively increment the column and position, to be
           ;; reverted later if decoding collapses multiple bytes:
           (loop (add1 i) (add1 span) line (and column (add1 column)) (and position (add1 position)) state #f)])]))))
+
+;; columns according to a duospaced font
+(define (string-columns str)
+  (for/sum ([c (in-string str)]) (char-columns c)))
+
+(define (char-columns c)
+  (cond ;[(char-fullwidth? c) 2]
+        [else 1]))
 
 ;; in atomic mode
 (define (port-count-all! in extra-ins amt bstr start)

@@ -385,7 +385,7 @@ void scheme_init_port_wait()
   scheme_add_evt(scheme_progress_evt_type, (Scheme_Ready_Fun)progress_evt_ready, NULL, NULL, 1);
   scheme_add_evt(scheme_write_evt_type, (Scheme_Ready_Fun)rw_evt_ready, rw_evt_wakeup, NULL, 1);
   scheme_add_evt(scheme_port_closed_evt_type, (Scheme_Ready_Fun)closed_evt_ready, NULL, NULL, 1);
-  scheme_add_evt(scheme_filesystem_change_evt_type, (Scheme_Ready_Fun)filesystem_change_evt_ready, 
+  scheme_add_evt(scheme_filesystem_change_evt_type, (Scheme_Ready_Fun)filesystem_change_evt_ready,
                  filesystem_change_evt_need_wakeup, NULL, 1);
 }
 
@@ -494,7 +494,7 @@ void *scheme_get_fdset(void *fdarray, int pos)
 }
 
 void scheme_fdzero(void *fds)
-{  
+{
   scheme_signal_error("scheme_fdzero is not supported");
 }
 
@@ -1016,7 +1016,7 @@ XFORM_NONGCING static void do_count_lines(Scheme_Port *ip, const char *buffer, i
     degot += (i + 1 - n);
     ip->utf8state = 0; /* assert: state == 0, because we ended with a newline */
   }
-	
+
   if (i >= 0) {
     int n = 0;
     ip->charsSinceNewline = c + 1;
@@ -1034,7 +1034,7 @@ XFORM_NONGCING static void do_count_lines(Scheme_Port *ip, const char *buffer, i
 	n++;
       }
     }
-	 	  
+
     mzAssert(n > 0);
     if (ip->lineNumber >= 0)
       ip->lineNumber += n;
@@ -1060,6 +1060,7 @@ XFORM_NONGCING static void do_count_lines(Scheme_Port *ip, const char *buffer, i
       if (buffer[offset + i] == '\t') {
 	n = scheme_utf8_decode_count((const unsigned char *)buffer, offset + prev_i, offset + i, &state, 0, 0xFFFD);
 	degot += ((i - prev_i) - n);
+  // TODO: duospace columns
 	col += n;
 	col = col - (col & 0x7) + 8;
 	prev_i = i + 1;
@@ -1068,6 +1069,7 @@ XFORM_NONGCING static void do_count_lines(Scheme_Port *ip, const char *buffer, i
     if (prev_i < i) {
       n = scheme_utf8_decode_count((const unsigned char *)buffer, offset + prev_i, offset + i, &state, 1, 0xFFFD);
       n += state_len(state);
+      // TODO: duospace columns
       col += n;
       degot += ((i - prev_i) - n);
     }
@@ -1084,7 +1086,7 @@ void scheme_port_count_lines(Scheme_Port *ip, const char *buffer, intptr_t offse
 {
   if (ip->position >= 0)
     ip->position += got;
-    
+
   if (ip->count_lines)
     do_count_lines(ip, buffer, offset, got);
 }
@@ -1133,7 +1135,7 @@ intptr_t scheme_get_byte_string_unless(const char *who,
       scheme_wait_input_allowed(ip, only_avail);
 
     /* check progress evt before checking for closed: */
-    if (unless_evt 
+    if (unless_evt
         && SAME_TYPE(SCHEME_TYPE(unless_evt), scheme_progress_evt_type)
         && SCHEME_SEMAP(SCHEME_PTR2_VAL(unless_evt))
         && scheme_try_plain_sema(SCHEME_PTR2_VAL(unless_evt)))
@@ -1324,7 +1326,7 @@ intptr_t scheme_get_byte_string_unless(const char *who,
 	   an "unless" to detect other accesses of the port
 	   if we block. */
 	Scheme_Object *unless;
-	  
+
 	if (nonblock > 0) {
 	  if (ip->unless)
 	    unless = ip->unless;
@@ -1370,7 +1372,7 @@ intptr_t scheme_get_byte_string_unless(const char *who,
 	  } else {
 	    if (SCHEME_TRUEP(SCHEME_CAR(unless))) {
 	      /* gc should be SCHEME_UNLESS_READY; only a user
-		 port without a peek can incorrectly produce something 
+		 port without a peek can incorrectly produce something
 		 else */
 	      if (gc == SCHEME_UNLESS_READY) {
 		gc = 0;
@@ -1392,7 +1394,7 @@ intptr_t scheme_get_byte_string_unless(const char *who,
 	    if (ip->p.count_lines)
 	      inc_pos((Scheme_Port *)ip, 1);
 	  }
-	  
+
 	  return SCHEME_SPECIAL;
 	}
 
@@ -1481,7 +1483,7 @@ intptr_t scheme_get_byte_string_unless(const char *who,
 
     /* Need to try to get more. */
   }
-  
+
   return total_got;
 }
 
@@ -1493,7 +1495,7 @@ intptr_t scheme_get_byte_string_special_ok_unless(const char *who,
 					      Scheme_Object *unless_evt)
 {
   special_is_ok = 1;
-  return scheme_get_byte_string_unless(who, port, buffer, offset, size, 
+  return scheme_get_byte_string_unless(who, port, buffer, offset, size,
 				       only_avail, peek, peek_skip, unless_evt);
 }
 
@@ -1662,7 +1664,7 @@ static int complete_peeked_read_via_get(Scheme_Input_Port *ip,
 	pip = NULL;
       }
     }
-      
+
     if (gs && size) {
       if (ip->p.count_lines) {
         if (buf_size < size) {
@@ -1767,12 +1769,12 @@ int scheme_peeked_read_via_get(Scheme_Input_Port *ip,
       sema = scheme_make_sema(0);
       ip->input_lock = sema;
       ip->slow = 1;
-      
+
       /* This sema lets other threads try to make progress,
 	 if the current target doesn't work out */
       sema = scheme_make_sema(0);
       ip->input_giveup = sema;
-      
+
       if (ip->input_extras) {
 	/* There are other threads trying to commit, and
 	   as main thread, we'll help them out. */
@@ -1795,7 +1797,7 @@ int scheme_peeked_read_via_get(Scheme_Input_Port *ip,
 	 tries to commit, because this thread will be
 	 responsible for multiplexing the commits. That's
 	 why the thread waits on its own suspend event. */
-      
+
       aa[0] = target_evt;
       aa[1] = ip->input_giveup;
       v = scheme_get_thread_suspend(scheme_current_thread);
@@ -1807,7 +1809,7 @@ int scheme_peeked_read_via_get(Scheme_Input_Port *ip,
       END_ESCAPEABLE();
 
       release_input_lock(ip);
-      
+
       if (SAME_OBJ(v, target_evt)) {
 	int r;
 	elect_new_main(ip);
@@ -1842,14 +1844,14 @@ int scheme_peeked_read_via_get(Scheme_Input_Port *ip,
 	check_suspended();
       } else {
 	current_leader = 1;
-	
+
 	/* Technically redundant, but avoid a thread swap
 	   if we know the commit isn't going to work: */
 	if (scheme_wait_sema(unless_evt, 1)) {
 	  elect_new_main(ip);
 	  return 0;
 	}
-      
+
 	scheme_thread_block(0.0);
       }
     }
@@ -1863,7 +1865,7 @@ int scheme_peeked_read(Scheme_Object *port,
 {
   Scheme_Input_Port *ip;
   Scheme_Peeked_Read_Fun pr;
-  
+
   ip = scheme_input_port_record(port);
 
   unless_evt = SCHEME_PTR2_VAL(unless_evt);
@@ -1894,11 +1896,11 @@ Scheme_Object *scheme_progress_evt_via_get(Scheme_Input_Port *port)
 }
 
 Scheme_Object *scheme_progress_evt(Scheme_Object *port)
-{  
+{
   Scheme_Input_Port *ip;
-  
+
   ip = scheme_input_port_record(port);
-  
+
   if (ip->progress_evt_fun) {
     Scheme_Progress_Evt_Fun ce;
     Scheme_Object *evt, *o;
@@ -1973,7 +1975,7 @@ intptr_t scheme_get_char_string(const char *who,
 	special_is_ok = 1;
 	got = scheme_get_byte_string_unless(who, port,
 					    s, leftover, 1,
-					    0, 1 /* => peek */, 
+					    0, 1 /* => peek */,
 					    quick_plus(peek_skip, ahead_skip),
 					    NULL);
 	if (got > 0) {
@@ -2037,7 +2039,7 @@ intptr_t scheme_get_char_string(const char *who,
       /* Read bsize bytes */
       if (bsize + leftover > READ_STRING_BYTE_BUFFER_SIZE)
 	bsize = READ_STRING_BYTE_BUFFER_SIZE - leftover;
-      
+
       got = scheme_get_byte_string_unless(who, port,
 					  s, leftover, bsize,
 					  0, peek, peek_skip,
@@ -2051,7 +2053,7 @@ intptr_t scheme_get_char_string(const char *who,
       glen = scheme_utf8_decode_as_prefix((const unsigned char *)s, 0, got + leftover,
 					  buffer, offset, offset + size,
 					  &ulen, 0, 0xFFFD);
-      
+
       total_got += glen;
       if (glen == size) {
 	/* Got enough */
@@ -2142,7 +2144,7 @@ static intptr_t get_one_byte_slow(const char *who,
       gs = ip->get_string_fun;
 
       gc = gs(ip, buffer, offset, 1, 0, NULL);
-	
+
       if (ip->progress_evt && (gc > 0))
         post_progress(ip);
 
@@ -2175,12 +2177,12 @@ static intptr_t get_one_byte_slow(const char *who,
   /****************************************************/
   /* Adjust position information for chars got so far */
   /****************************************************/
-  
+
   if (ip->p.position >= 0)
     ip->p.position++;
   if (ip->p.count_lines)
     do_count_lines((Scheme_Port *)ip, buffer, offset, 1);
-  
+
   return gc;
 }
 
@@ -2197,7 +2199,7 @@ static MZ_INLINE intptr_t get_one_byte(GC_CAN_IGNORE const char *who,
       gs = ip->get_string_fun;
 
       v = gs(ip, buffer, 0, 1, 0, NULL);
-    
+
       if (v) {
         if (v == SCHEME_SPECIAL) {
           scheme_bad_time_for_special(who, port);
@@ -2212,7 +2214,7 @@ static MZ_INLINE intptr_t get_one_byte(GC_CAN_IGNORE const char *who,
       }
     }
   }
-  
+
   return get_one_byte_slow(who, port, buffer, 0, 0);
 }
 
@@ -2345,7 +2347,7 @@ scheme_peek_byte_special_ok_skip(Scheme_Object *port, Scheme_Object *skip, Schem
   return scheme_peek_byte_skip(port, skip, unless_evt);
 }
 
-static int do_peekc_skip(Scheme_Object *port, Scheme_Object *skip, 
+static int do_peekc_skip(Scheme_Object *port, Scheme_Object *skip,
 			 int only_avail, int *unavail)
 {
   char s[MAX_UTF8_CHAR_BYTES];
@@ -2430,8 +2432,8 @@ int scheme_peekc_is_ungetc(Scheme_Object *port)
   return !ip->peek_string_fun;
 }
 
-Scheme_Object *make_read_write_evt(Scheme_Type type, 
-				   Scheme_Object *port, Scheme_Object *skip, 
+Scheme_Object *make_read_write_evt(Scheme_Type type,
+				   Scheme_Object *port, Scheme_Object *skip,
 				   char *str, intptr_t start, intptr_t size)
 {
   Scheme_Read_Write_Evt *rww;
@@ -2458,7 +2460,7 @@ static int rw_evt_ready(Scheme_Object *_rww, Scheme_Schedule_Info *sinfo)
     sinfo->potentially_false_positive = 1;
     return 1;
   }
-  
+
   if (rww->v) {
     Scheme_Output_Port *op;
     Scheme_Write_Special_Fun ws;
@@ -2470,7 +2472,7 @@ static int rw_evt_ready(Scheme_Object *_rww, Scheme_Schedule_Info *sinfo)
     if (v) {
       scheme_set_sync_target(sinfo, scheme_true, NULL, NULL, 0, 0, NULL);
       return 1;
-    } else	
+    } else
       return 0;
   } else {
     v = scheme_put_byte_string("write-evt", rww->port,
@@ -2502,17 +2504,17 @@ static void rw_evt_wakeup(Scheme_Object *_rww, void *fds)
 Scheme_Object *scheme_write_evt_via_write(Scheme_Output_Port *port,
 					  const char *str, intptr_t offset, intptr_t size)
 {
-  return make_read_write_evt(scheme_write_evt_type, (Scheme_Object *)port, NULL, 
+  return make_read_write_evt(scheme_write_evt_type, (Scheme_Object *)port, NULL,
 			     (char *)str, offset, size);
 }
 
-Scheme_Object *scheme_write_special_evt_via_write_special(Scheme_Output_Port *port, 
+Scheme_Object *scheme_write_special_evt_via_write_special(Scheme_Output_Port *port,
 							  Scheme_Object *special)
 {
-  return make_read_write_evt(scheme_write_evt_type, (Scheme_Object *)port, special, 
+  return make_read_write_evt(scheme_write_evt_type, (Scheme_Object *)port, special,
 			     NULL, 0, 1);
 }
-	
+
 Scheme_Object *scheme_make_write_evt(const char *who, Scheme_Object *port,
 				     Scheme_Object *special, char *str, intptr_t start, intptr_t size)
 {
@@ -2632,7 +2634,7 @@ scheme_char_ready (Scheme_Object *port)
     return 0;
 
   do_peekc_skip(port, scheme_make_integer(0), 2, &unavail);
-  
+
   return !unavail;
 }
 
@@ -2690,7 +2692,7 @@ Scheme_Object *scheme_get_special(Scheme_Object *port,
   return special;
 }
 
-static Scheme_Object *do_get_ready_special(Scheme_Object *port, 
+static Scheme_Object *do_get_ready_special(Scheme_Object *port,
 					   Scheme_Object *stxsrc,
 					   int peek,
 					   Scheme_Hash_Table **ht)
@@ -2713,7 +2715,7 @@ Scheme_Object *scheme_get_ready_read_special(Scheme_Object *port, Scheme_Object 
   return do_get_ready_special(port, stxsrc, 0, ht);
 }
 
-Scheme_Object *scheme_get_ready_special(Scheme_Object *port, 
+Scheme_Object *scheme_get_ready_special(Scheme_Object *port,
 					Scheme_Object *stxsrc,
 					int peek)
 {
@@ -2760,10 +2762,10 @@ Scheme_Object *scheme_get_special_proc(Scheme_Object *inport)
   ip = scheme_input_port_record(inport);
   special = ip->special;
   ip->special = NULL;
-  
+
   sbox = MALLOC_ONE(Scheme_Object *);
   *sbox = special;
-  return scheme_make_closed_prim_w_arity(check_special_args, 
+  return scheme_make_closed_prim_w_arity(check_special_args,
 					 sbox, "read-special",
 					 4, 4);
 }
@@ -2804,9 +2806,9 @@ do_tell (Scheme_Object *port, int not_via_loc)
   intptr_t pos;
 
   ip = scheme_port_record(port);
-  
+
   check_input_port_lock(ip);
-  
+
   CHECK_IOPORT_CLOSED("get-file-position", ip);
 
   if (not_via_loc || !ip->count_lines || (ip->position < 0))
@@ -2886,7 +2888,7 @@ static void extract_next_location(const char *who, int argc, Scheme_Object **a, 
       if (v == -1) {
         if (argc < 0)
           a[0] = a[i];
-        scheme_wrong_contract(who, 
+        scheme_wrong_contract(who,
                               ((j == 1) ? "(or/c exact-nonnegative-integer? #f)" : "(or/c exact-positive-integer? #f)"),
                               ((argc > 0) ? i : -1), argc, a);
         return;
@@ -2919,21 +2921,21 @@ void
 scheme_tell_all (Scheme_Object *port, intptr_t *_line, intptr_t *_col, intptr_t *_pos)
 {
   Scheme_Port *ip;
-  
+
   ip = scheme_port_record(port);
 
   if (ip->count_lines && ip->location_fun) {
     Scheme_Location_Fun location_fun;
     Scheme_Object *r, *a[3];
     int got;
-    
+
     location_fun = ip->location_fun;
     r = location_fun(ip);
 
     got = (SAME_OBJ(r, SCHEME_MULTIPLE_VALUES) ? scheme_multiple_count : 1);
     if (got != 3) {
       scheme_wrong_return_arity("user port next-location",
-				3, got, 
+				3, got,
 				(got == 1) ? (Scheme_Object **)r : scheme_multiple_array,
 				"calling port-next-location procedure");
       return;
@@ -2965,7 +2967,7 @@ scheme_tell_can_redirect (Scheme_Object *port, int not_via_loc)
 
   while (1) {
     ip = scheme_port_record(port);
-    
+
     if (ip->position_redirect) {
       if (SCHEME_INPUT_PORTP(ip->position_redirect)
           || SCHEME_OUTPUT_PORTP(ip->position_redirect)) {
@@ -2995,13 +2997,13 @@ void scheme_set_port_location(int argc, Scheme_Object **argv)
 {
   Scheme_Port *ip;
   intptr_t line, col, pos;
-  
-  extract_next_location("set-port-next-location!", argc, argv, 
+
+  extract_next_location("set-port-next-location!", argc, argv,
                         1, &line, &col, &pos);
 
-  
+
   ip = scheme_port_record(argv[0]);
-  
+
   if (ip->count_lines) {
     ip->readpos = pos;
     ip->lineNumber = line;
@@ -3022,7 +3024,7 @@ scheme_count_lines (Scheme_Object *port)
       Scheme_Count_Lines_Fun cl = ip->count_lines_fun;
       cl(ip);
     }
-    
+
     if (scheme_is_input_port(port)) {
       Scheme_Input_Port *iip;
       iip = scheme_input_port_record(port);
@@ -3124,12 +3126,12 @@ put_byte_string_slow(const char *who, Scheme_Object *port,
   oout = 0;
   while (llen || !len) {
     out = ws(op, str, d, llen, rarely_block, enable_break);
-    
+
     /* If out is 0, it might be because the port got closed: */
     if (!out) {
       CHECK_PORT_CLOSED(who, "output", port, op->closed);
     }
-    
+
     if (out > 0) {
       op->p.position += out;
       oout += out;
@@ -3187,7 +3189,7 @@ void scheme_write_char_string(const mzchar *str, intptr_t len, Scheme_Object *po
   char *bstr, buf[64];
 
   bstr = scheme_utf8_encode_to_buffer_len(str, len, buf, 64, &blen);
-  
+
   scheme_write_byte_string(bstr, blen, port);
 }
 
@@ -3235,7 +3237,7 @@ scheme_close_output_port(Scheme_Object *port)
       scheme_remove_managed(op->mref, (Scheme_Object *)op);
       op->mref = NULL;
     }
-    
+
     op->closed = 1;
     if (op->closed_evt)
       scheme_post_sema_all(SCHEME_PTR_VAL(op->closed_evt));
@@ -3422,7 +3424,7 @@ static Scheme_Object *unsafe_handle_to_port(const char *who, int argc, Scheme_Ob
     if (!SCHEME_BYTE_STRINGP(name))
       scheme_wrong_contract(who, "bytes?", 1, argc, argv);
   }
-  
+
   l = argv[2];
   while (SCHEME_PAIRP(l)) {
     a = SCHEME_CAR(l);
@@ -3469,16 +3471,16 @@ static Scheme_Object *unsafe_fd_to_port(int argc, Scheme_Object *argv[])
 {
   return unsafe_handle_to_port("unsafe-file-descriptor->port", argc, argv, 0);
 }
-  
+
 static Scheme_Object *unsafe_socket_to_port(int argc, Scheme_Object *argv[])
 {
   return unsafe_handle_to_port("unsafe-socket->port", argc, argv, 1);
 }
-  
+
 static Scheme_Object *unsafe_port_to_fd(int argc, Scheme_Object *argv[])
 {
   intptr_t s;
-  
+
   if (scheme_get_port_file_descriptor(argv[0], &s))
     return scheme_make_integer_value(s);
   else {
@@ -3491,7 +3493,7 @@ static Scheme_Object *unsafe_port_to_fd(int argc, Scheme_Object *argv[])
 static Scheme_Object *unsafe_port_to_socket(int argc, Scheme_Object *argv[])
 {
   intptr_t s;
-  
+
   if (scheme_get_port_socket(argv[0], &s))
     return scheme_make_integer_value(s);
   else {
@@ -3522,7 +3524,7 @@ static Scheme_Object *unsafe_handle_to_semaphore(const char *who, int argc, Sche
     mode = MZFD_CHECK_WRITE;
   else if (!strcmp(SCHEME_SYM_VAL(a), "remove"))
     mode = MZFD_REMOVE;
-  else 
+  else
     mode = -1;
 
   if (mode == -1)
@@ -3558,13 +3560,13 @@ Scheme_Object *scheme_file_identity(int argc, Scheme_Object *argv[])
       Scheme_Input_Port *ip;
 
       ip = scheme_input_port_record(p);
-      
+
       CHECK_PORT_CLOSED("port-file-identity", "input", p, ip->closed);
     } else if (SCHEME_OUTPUT_PORTP(p)) {
       Scheme_Output_Port *op;
-      
+
       op = scheme_output_port_record(p);
-      
+
       CHECK_PORT_CLOSED("port-file-identity", "output", p, op->closed);
     }
 
@@ -3580,7 +3582,7 @@ static int is_fd_terminal(intptr_t fd)
 {
   rktio_fd_t *rfd;
   int is_term;
-  
+
   rfd = rktio_system_fd(scheme_rktio, fd, RKTIO_OPEN_NOT_REGFILE);
   is_term = rktio_fd_is_terminal(scheme_rktio, rfd);
   rktio_forget(scheme_rktio, rfd);
@@ -3750,7 +3752,7 @@ scheme_do_open_input_file(char *name, int offset, int argc, Scheme_Object *argv[
 
       astr = scheme_make_args_string("", -1, argc, argv, &alen);
       scheme_raise_exn(MZEXN_FAIL_CONTRACT,
-		       "%s: conflicting or redundant file modes given%t", 
+		       "%s: conflicting or redundant file modes given%t",
                        name,
 		       astr, alen);
     }
@@ -3771,12 +3773,12 @@ scheme_do_open_input_file(char *name, int offset, int argc, Scheme_Object *argv[
     filename_exn(name, "cannot open input file", filename, (for_module ? RKTIO_ERROR_DOES_NOT_EXIST : 0));
     return NULL;
   }
-  
+
   return make_fd_input_port(fd, scheme_make_path(filename), NULL, internal);
 }
 
 Scheme_Object *
-scheme_do_open_output_file(char *name, int offset, int argc, Scheme_Object *argv[], int and_read, 
+scheme_do_open_output_file(char *name, int offset, int argc, Scheme_Object *argv[], int and_read,
                            int internal)
 {
   int e_set = 0, m_set = 0, i;
@@ -3868,7 +3870,7 @@ scheme_do_open_output_file(char *name, int offset, int argc, Scheme_Object *argv
 
         astr = scheme_make_args_string("", -1, argc, argv, &alen);
         scheme_raise_exn(MZEXN_FAIL_CONTRACT,
-                         "%s: conflicting or redundant file modes given%t", 
+                         "%s: conflicting or redundant file modes given%t",
                          name,
                          astr, alen);
       }
@@ -3904,7 +3906,7 @@ scheme_do_open_output_file(char *name, int offset, int argc, Scheme_Object *argv
                                              | (and_read ? RKTIO_OPEN_READ : 0)
                                              | ((mode[1] == 't') ? RKTIO_OPEN_TEXT : 0)),
                                             perms);
-    
+
     if (!fd
         && try_replace
         && (scheme_last_error_is_racket(RKTIO_ERROR_EXISTS)
@@ -3940,7 +3942,7 @@ scheme_do_open_output_file(char *name, int offset, int argc, Scheme_Object *argv
                          "  system error: %R",
                          name, filename);
   }
-    
+
   return make_fd_output_port(fd, scheme_make_path(filename), and_read, -1, NULL);
 }
 
@@ -3999,11 +4001,11 @@ do_file_position(const char *who, int argc, Scheme_Object *argv[], int can_false
       if (SCHEME_INTP(argv[1])) {
 	ok = (SCHEME_INT_VAL(argv[1]) >= 0);
       }
-      
+
       if (SCHEME_BIGNUMP(argv[1])) {
 	ok = SCHEME_BIGPOS(argv[1]);
       }
-      
+
       if (!ok)
 	scheme_wrong_contract(who, "(or/c exact-nonnegative-integer? eof-object?)", 1, argc, argv);
     }
@@ -4098,7 +4100,7 @@ do_file_position(const char *who, int argc, Scheme_Object *argv[], int can_false
                             NULL);
       return NULL;
     }
-      
+
     if (f) {
       if (BIG_OFF_T_IZE(fseeko)(f, nll, whence)) {
 	scheme_raise_exn(MZEXN_FAIL_FILESYSTEM,
@@ -4199,7 +4201,7 @@ do_file_position(const char *who, int argc, Scheme_Object *argv[], int can_false
       pll = BIG_OFF_T_IZE(ftello)(f);
     } else if (fd) {
       rktio_filesize_t *sz;
-      
+
       sz = rktio_get_file_position(scheme_rktio, fd);
       if (!sz) {
         pll = do_tell(argv[0], 0);
@@ -4208,7 +4210,7 @@ do_file_position(const char *who, int argc, Scheme_Object *argv[], int can_false
         pll = *sz;
         free(sz);
 
-	if (SCHEME_INPUT_PORTP(argv[0])) {          
+	if (SCHEME_INPUT_PORTP(argv[0])) {
           Scheme_Input_Port *ip;
           ip = scheme_input_port_record(argv[0]);
 	  pll -= ((Scheme_FD *)ip->port_data)->bufcount;
@@ -4286,7 +4288,7 @@ Scheme_Object *scheme_file_truncate(int argc, Scheme_Object *argv[])
   }
 
   op = scheme_output_port_record(argv[0]);
-  
+
   if (SAME_OBJ(op->sub_type, file_output_port_type)) {
     intptr_t sfd;
     sfd = MSC_IZE (fileno)((FILE *)((Scheme_Output_File *)op->port_data)->f);
@@ -4302,7 +4304,7 @@ Scheme_Object *scheme_file_truncate(int argc, Scheme_Object *argv[])
   ok = rktio_set_file_size(scheme_rktio, fd, nll);
 
   if (free_fd) rktio_forget(scheme_rktio, fd);
-  
+
   if (!ok) {
     scheme_raise_exn(MZEXN_FAIL_FILESYSTEM,
                      "file-truncate: size change failed\n"
@@ -4364,7 +4366,7 @@ scheme_file_buffer(int argc, Scheme_Object *argv[])
       scheme_wrong_contract("file-stream-buffer-mode", "(or/c 'none 'line 'block)", 1, argc, argv);
 
     if (SCHEME_INPUT_PORTP(argv[0]) && SAME_OBJ(s, scheme_line_symbol))
-      scheme_contract_error("file-stream-buffer-mode", 
+      scheme_contract_error("file-stream-buffer-mode",
                             "'line buffering not supported for an input port",
                             "port", 1, argv[0],
                             NULL);
@@ -4381,7 +4383,7 @@ scheme_file_buffer(int argc, Scheme_Object *argv[])
 
       bm(p, mode);
     } else {
-      scheme_contract_error("file-stream-buffer-mode", 
+      scheme_contract_error("file-stream-buffer-mode",
                             "cannot set buffer mode on port",
                             "port", 1, argv[0],
                             NULL);
@@ -4452,14 +4454,14 @@ Scheme_Object *scheme_file_try_lock(int argc, Scheme_Object **argv)
 
   if (r == RKTIO_LOCK_ACQUIRED)
     return scheme_true;
-  
+
   if (r == RKTIO_LOCK_ERROR) {
     scheme_raise_exn(MZEXN_FAIL_FILESYSTEM,
                      "port-try-file-lock?: error getting file %s lock\n"
                      "  system error: %R",
                      (writer ? "exclusive" : "shared"));
   }
-   
+
   return scheme_false;
 }
 
@@ -4509,7 +4511,7 @@ Scheme_Object *scheme_filesystem_change_evt(Scheme_Object *path, int flags, int 
 					   "filesystem-change-evt",
 					   NULL,
 					   SCHEME_GUARD_FILE_EXISTS);
-  
+
   rfc = rktio_fs_change(scheme_rktio, filename, scheme_semaphore_fd_set);
 
   if (!rfc
@@ -4538,7 +4540,7 @@ Scheme_Object *scheme_filesystem_change_evt(Scheme_Object *path, int flags, int 
         filename_exn("filesystem-change-evt", "error generating event", filename, 0);
       }
     }
-    
+
     return NULL;
   }
 
@@ -4583,14 +4585,14 @@ static int filesystem_change_evt_ready(Scheme_Object *evt, Scheme_Schedule_Info 
 
   if (rktio_poll_fs_change_ready(scheme_rktio, fc->rfc))
     return 1;
-  
+
   return 0;
 }
 
 static void filesystem_change_evt_need_wakeup(Scheme_Object *evt, void *fds)
 {
   Scheme_Filesystem_Change_Evt *fc = (Scheme_Filesystem_Change_Evt *)evt;
-    
+
   if (fc->rfc)
     rktio_poll_add_fs_change(scheme_rktio, fc->rfc, fds);
 }
@@ -4602,7 +4604,7 @@ void scheme_fs_change_properties(int *_supported, int *_scalable, int *_low_late
   props = rktio_fs_change_properties(scheme_rktio);
   if ((props & RKTIO_FS_CHANGE_NEED_LTPS) && !scheme_semaphore_fd_set)
     props = 0;
-  
+
   *_supported = ((props & RKTIO_FS_CHANGE_SUPPORTED) ? 1 : 0);
   *_scalable = ((props & RKTIO_FS_CHANGE_SCALABLE) ? 1 : 0);
   *_low_latency = ((props & RKTIO_FS_CHANGE_LOW_LATENCY) ? 1 : 0);
@@ -4682,14 +4684,14 @@ file_buffer_mode(Scheme_Port *p, int mode)
     Scheme_Output_Port *op = (Scheme_Output_Port *)p;
     f = ((Scheme_Output_File *)op->port_data)->f;
   }
-  
+
   if (mode == MZ_FLUSH_NEVER)
     bad = setvbuf(f, NULL, _IOFBF, 0);
   else if (mode == MZ_FLUSH_BY_LINE)
     bad = setvbuf(f, NULL, _IOLBF, 0);
   else
     bad = setvbuf(f, NULL, _IONBF, 0);
-  
+
   if (bad) {
     scheme_raise_exn(MZEXN_FAIL_FILESYSTEM,
 		     "file-stream-buffer-mode: error changing buffering\n"
@@ -4802,12 +4804,12 @@ static intptr_t fd_get_string_slow(Scheme_Input_Port *port,
     while (!fd_byte_ready(port)) {
       if (nonblock > 0)
         return 0;
-      
+
       sema = scheme_rktio_fd_to_semaphore(fip->fd, MZFD_CREATE_READ);
 
       if (sema)
         scheme_wait_sema(sema, nonblock ? -1 : 0);
-      else 
+      else
         scheme_block_until_unless((Scheme_Ready_Fun)fd_byte_ready,
                                   (Scheme_Needs_Wakeup_Fun)fd_need_wakeup,
                                   (Scheme_Object *)port,
@@ -4862,7 +4864,7 @@ static intptr_t fd_get_string_slow(Scheme_Input_Port *port,
       bc = 0; /* EOF */
     else if (bc == RKTIO_READ_ERROR)
       bc = -1; /* error */
-    
+
     if (!none_avail) {
       if (ext_target && (bc > 0)) {
         return bc;
@@ -4916,7 +4918,7 @@ static intptr_t fd_get_string(Scheme_Input_Port *port,
   Scheme_FD *fip;
   intptr_t bc;
 
-  /* Buffer-reading fast path is designed to avoid GC, 
+  /* Buffer-reading fast path is designed to avoid GC,
      and thus avoid MZ_PRECISE_GC instrumentation. */
 
   if (unless && scheme_unless_ready(unless))
@@ -4974,7 +4976,7 @@ static int fd_input_buffer_mode(Scheme_Port *p, int mode)
 {
   Scheme_FD *fd;
   Scheme_Input_Port *ip = (Scheme_Input_Port *)p;
-    
+
   fd = (Scheme_FD *)ip->port_data;
 
   if (mode < 0) {
@@ -5029,7 +5031,7 @@ make_fd_input_port(rktio_fd_t *fd, Scheme_Object *name, int *refcount, int inter
 			      scheme_progress_evt_via_get,
 			      scheme_peeked_read_via_get,
 			      fd_byte_ready,
-			      (start_closed 
+			      (start_closed
 			       ? fd_init_close_input
 			       : fd_close_input),
 			      fd_need_wakeup,
@@ -5056,7 +5058,7 @@ scheme_make_fd_input_port(int fd, Scheme_Object *name, int regfile, int textmode
                             ? RKTIO_OPEN_REGFILE
                             : RKTIO_OPEN_NOT_REGFILE)
                          | (textmode ? RKTIO_OPEN_TEXT : 0)));
-  
+
   return make_fd_input_port(rfd, name, NULL, 0);
 }
 
@@ -5185,7 +5187,7 @@ fd_flush_done(Scheme_Object *port)
 
 static void wait_until_fd_flushed(Scheme_Output_Port *op, int enable_break)
 {
-  scheme_block_until_enable_break(fd_flush_done, NULL, (Scheme_Object *)op, 
+  scheme_block_until_enable_break(fd_flush_done, NULL, (Scheme_Object *)op,
 				  0.0, enable_break);
 }
 
@@ -5445,7 +5447,7 @@ static void end_fd_flush_needs_wakeup(Scheme_Object *fop, void *fds)
 {
   rktio_poll_add(scheme_rktio, ((Scheme_FD *)fop)->fd, fds, RKTIO_POLL_FLUSH);
 }
-  
+
 static void
 fd_close_output(Scheme_Output_Port *port)
 {
@@ -5497,7 +5499,7 @@ static int fd_output_buffer_mode(Scheme_Port *p, int mode)
   Scheme_Output_Port *op = (Scheme_Output_Port *)p;
 
   fd = (Scheme_FD *)op->port_data;
-  
+
   if (mode < 0) {
     return fd->flush;
   } else {
@@ -5607,7 +5609,7 @@ scheme_make_fd_output_port(int fd, Scheme_Object *name, int regfile, int textmod
                          | (regfile ? RKTIO_OPEN_REGFILE : RKTIO_OPEN_NOT_REGFILE)
                          | (read_too ? RKTIO_OPEN_READ : 0)
                          | (textmode ? RKTIO_OPEN_TEXT : 0)));
-  
+
   return make_fd_output_port(rfd, name, read_too, -1, NULL);
 }
 
@@ -5663,7 +5665,7 @@ null_write_special_evt(Scheme_Output_Port *op, Scheme_Object *v)
   return scheme_wrap_evt(2, a);
 }
 
-static int 
+static int
 null_write_special(Scheme_Output_Port *op, Scheme_Object *v, int nonblock)
 {
   return 1;
@@ -5770,11 +5772,11 @@ int scheme_redirect_write_special (Scheme_Output_Port *op, Scheme_Object *v, int
     {
       Scheme_Thread *p = scheme_current_thread;
       Scheme_Object *n;
-      
+
       p->ku.k.p1 = (void *)op;
       p->ku.k.p2 = (void *)v;
       p->ku.k.i1 = nonblock;
-      
+
       n = scheme_handle_stack_overflow(redirect_write_special_k);
       return SCHEME_INT_VAL(n);
     }
@@ -5783,7 +5785,7 @@ int scheme_redirect_write_special (Scheme_Output_Port *op, Scheme_Object *v, int
 
   a[0] = (Scheme_Object *)v;
   a[1] = (Scheme_Object *)op;
-  
+
   if (nonblock)
     v = scheme_write_special_nonblock(2, a);
   else
@@ -5816,7 +5818,7 @@ redirect_close_out (Scheme_Output_Port *port)
 static Scheme_Object *
 redirect_write_evt(Scheme_Output_Port *op, const char *str, intptr_t offset, intptr_t size)
 {
-  return scheme_make_write_evt("redirect-write-evt", 
+  return scheme_make_write_evt("redirect-write-evt",
 			       (Scheme_Object *)op->port_data,
 			       NULL, (char *)str, offset, size);
 }
@@ -5824,12 +5826,12 @@ redirect_write_evt(Scheme_Output_Port *op, const char *str, intptr_t offset, int
 static Scheme_Object *
 redirect_write_special_evt(Scheme_Output_Port *op, Scheme_Object *special)
 {
-  return scheme_make_write_evt("redirect-write-evt", 
+  return scheme_make_write_evt("redirect-write-evt",
 			       (Scheme_Object *)op->port_data,
 			       special, NULL, 0, 0);
 }
 
-static int 
+static int
 redirect_write_special(Scheme_Output_Port *op, Scheme_Object *special, int nonblock)
 {
   return scheme_redirect_write_special(scheme_output_port_record((Scheme_Object *)op->port_data),
@@ -5888,7 +5890,7 @@ intptr_t scheme_redirect_get_or_peek_bytes(Scheme_Input_Port *orig_port,
     {
       Scheme_Thread *p = scheme_current_thread;
       Scheme_Object *n;
-      
+
       p->ku.k.p1 = (void *)port;
       p->ku.k.p2 = (void *)buffer;
       p->ku.k.p3 = (void *)peek_skip;
@@ -5898,7 +5900,7 @@ intptr_t scheme_redirect_get_or_peek_bytes(Scheme_Input_Port *orig_port,
       p->ku.k.i1 = size;
       p->ku.k.i2 = nonblock;
       p->ku.k.i3 = peek;
-      
+
       n = scheme_handle_stack_overflow(redirect_get_or_peek_bytes_k);
       return SCHEME_INT_VAL(n);
     }
@@ -5907,7 +5909,7 @@ intptr_t scheme_redirect_get_or_peek_bytes(Scheme_Input_Port *orig_port,
 
   r = scheme_get_byte_string_special_ok_unless("redirect-read-or-peek",
                                                (Scheme_Object *)port,
-                                               buffer, offset, size, 
+                                               buffer, offset, size,
                                                ((nonblock == -1)
                                                 ? -1
                                                 : (nonblock ? 2 : 1)),
@@ -5944,7 +5946,7 @@ static Scheme_Object *redirect_get_or_peek_bytes_k(void)
   p->ku.k.p5 = NULL;
 
   n = scheme_redirect_get_or_peek_bytes(orig_port, ip, buffer, d, len,
-                                        nonblock, 
+                                        nonblock,
                                         peek, peek_skip,
                                         unless, NULL);
 
@@ -6002,12 +6004,12 @@ static Scheme_Object *subprocess_status(int argc, Scheme_Object **argv)
 {
   Scheme_Subprocess *sp = (Scheme_Subprocess *)argv[0];
   rktio_status_t *st;
-  
+
   if (!SAME_TYPE(SCHEME_TYPE(argv[0]), scheme_subprocess_type))
     scheme_wrong_contract("subprocess-status", "subprocess?", 0, argc, argv);
-  
+
   st = rktio_process_status(scheme_rktio, sp->proc);
-  
+
   if (!st) {
     scheme_raise_exn(MZEXN_FAIL,
                      "subprocess-status: error getting status\n"
@@ -6061,7 +6063,7 @@ static Scheme_Object *do_subprocess_kill(Scheme_Object *_sp, Scheme_Object *kill
 
   if (!ok) {
     if (can_error)
-      scheme_raise_exn(MZEXN_FAIL, 
+      scheme_raise_exn(MZEXN_FAIL,
                        "subprocess-kill: operation failed\n"
                        "  system error: %R");
   }
@@ -6090,7 +6092,7 @@ static Scheme_Object *subprocess_kill(int argc, Scheme_Object **argv)
 static Scheme_Object *subprocess_pid(int argc, Scheme_Object **argv)
 {
   intptr_t pid;
-  
+
   if (!SAME_TYPE(SCHEME_TYPE(argv[0]), scheme_subprocess_type))
     scheme_wrong_contract("subprocess-pid", "subprocess?", 0, argc, argv);
 
@@ -6115,7 +6117,7 @@ static Scheme_Object *subproc_cust_mode_p(int argc, Scheme_Object **argv)
         || !strcmp(SCHEME_SYM_VAL(argv[0]), "interrupt"))
       return argv[0];
   }
-    
+
   return NULL;
 }
 
@@ -6128,8 +6130,8 @@ static Scheme_Object *current_subproc_cust_mode (int argc, Scheme_Object *argv[]
 
 static Scheme_Object *subproc_group_on (int argc, Scheme_Object *argv[])
 {
-  return scheme_param_config("subprocess-group-enabled", scheme_make_integer(MZCONFIG_SUBPROC_GROUP_ENABLED), 
-                             argc, argv, 
+  return scheme_param_config("subprocess-group-enabled", scheme_make_integer(MZCONFIG_SUBPROC_GROUP_ENABLED),
+                             argc, argv,
                              -1, NULL, NULL, 1);
 }
 
@@ -6244,7 +6246,7 @@ static Scheme_Object *subprocess(int c, Scheme_Object *args[])
   {
     char *ef;
     ef = scheme_expand_string_filename(args[command_arg_i],
-				       (char *)name, 
+				       (char *)name,
 				       NULL,
 				       SCHEME_GUARD_FILE_EXECUTE);
     argv[0] = ef;
@@ -6257,7 +6259,7 @@ static Scheme_Object *subprocess(int c, Scheme_Object *args[])
     np = scheme_normal_path_seps(argv[0], &nplen, 0);
     argv[0] = np;
   }
-  
+
   if ((c == (command_arg_i + 3)) && SAME_OBJ(args[command_arg_i+1], exact_symbol)) {
     argv[2] = NULL;
     if (!SCHEME_CHAR_STRINGP(args[command_arg_i+2]) || scheme_any_string_has_null(args[command_arg_i+2]))
@@ -6270,7 +6272,7 @@ static Scheme_Object *subprocess(int c, Scheme_Object *args[])
 
     if (rktio_process_allowed_flags(scheme_rktio) & RKTIO_PROCESS_WINDOWS_EXACT_CMDLINE)
       flags |= RKTIO_PROCESS_WINDOWS_EXACT_CMDLINE;
-    else 
+    else
       scheme_contract_error(name,
                             "exact command line not supported on this platform",
                             "exact command", 1, args[command_arg_i + 2],
@@ -6344,7 +6346,7 @@ static Scheme_Object *subprocess(int c, Scheme_Object *args[])
   envvars = scheme_environment_variables_to_envvars(scheme_get_param(config, MZCONFIG_CURRENT_ENV_VARS));
 
   block_timer_signals(1);
-  
+
   result = rktio_process(scheme_rktio,
                          command, argc, (rktio_const_string_t *)argv,
                          stdout_fd, stdin_fd, stderr_fd,
@@ -6372,18 +6374,18 @@ static Scheme_Object *subprocess(int c, Scheme_Object *args[])
 
   {
     Scheme_Object *in = scheme_false, *out = scheme_false, *err = scheme_false;
-    
+
     if (result->stdout_fd)
       in = make_fd_input_port(result->stdout_fd, scheme_intern_symbol("subprocess-stdout"), NULL, 0);
     if (result->stdin_fd)
       out = make_fd_output_port(result->stdin_fd, scheme_intern_symbol("subprocess-stdin"), 0, -1, NULL);
     if (result->stderr_fd)
       err = make_fd_input_port(result->stderr_fd, scheme_intern_symbol("subprocess-stderr"), NULL, 0);
-    
+
     /*--------------------------------------*/
     /*          Return result info          */
     /*--------------------------------------*/
-    
+
     subproc = MALLOC_ONE_TAGGED(Scheme_Subprocess);
     subproc->so.type = scheme_subprocess_type;
     subproc->proc = result->process;
@@ -6458,7 +6460,7 @@ static Scheme_Object *sch_shell_execute(int c, Scheme_Object *argv[])
 
   nplen = strlen(dir);
   dir = scheme_normal_path_seps(dir, &nplen, 0);
-    
+
   if (SCHEME_FALSEP(argv[0]))
     sv = NULL;
   else
@@ -6494,7 +6496,7 @@ void scheme_reserve_file_descriptor(void)
 {
 #ifndef DOS_FILE_SYSTEM
   if (!fd_reserved) {
-    the_fd = rktio_open(scheme_rktio, "/dev/null", RKTIO_OPEN_READ); 
+    the_fd = rktio_open(scheme_rktio, "/dev/null", RKTIO_OPEN_READ);
     if (the_fd)
       fd_reserved = 1;
   }
@@ -6599,7 +6601,7 @@ static void scheme_start_itimer_thread(intptr_t usec)
     sema = CreateSemaphore(NULL, 0, 1, NULL);
     d->done_semaphore = sema;
 
-    itimer = CreateThread(NULL, 4096, (LPTHREAD_START_ROUTINE)ITimer, 
+    itimer = CreateThread(NULL, 4096, (LPTHREAD_START_ROUTINE)ITimer,
 			  d, 0, &id);
     scheme_remember_thread(itimer, 0);
     d->itimer = itimer;
@@ -6677,7 +6679,7 @@ static void *green_thread_timer(void *data)
   return NULL;
 }
 
-static void start_green_thread_timer(intptr_t usec) 
+static void start_green_thread_timer(intptr_t usec)
 {
   mz_proc_thread *tmp;
   itimerdata->die = 0;
@@ -6691,7 +6693,7 @@ static void start_green_thread_timer(intptr_t usec)
   itimerdata->itimer = 1;
 }
 
-static void kill_green_thread_timer() 
+static void kill_green_thread_timer()
 {
   pthread_mutex_lock(&itimerdata->mutex);
   itimerdata->die = 1;
@@ -6710,7 +6712,7 @@ static void kill_green_thread_timer()
   itimerdata = NULL;
 }
 
-static void kickoff_green_thread_timer(intptr_t usec) 
+static void kickoff_green_thread_timer(intptr_t usec)
 {
   pthread_mutex_lock(&itimerdata->mutex);
   itimerdata->delay = usec;
@@ -6753,7 +6755,7 @@ static void itimer_expired(int ignored)
   scheme_jit_stack_boundary = (uintptr_t)-1;
 }
 
-static void kickoff_itimer(intptr_t usec) 
+static void kickoff_itimer(intptr_t usec)
   XFORM_SKIP_PROC
 {
   struct itimerval t;
@@ -6789,7 +6791,7 @@ static void block_timer_signals(int block)
     t.it_value.tv_usec = 0;
     t.it_interval.tv_sec = 0;
     t.it_interval.tv_usec = 0;
-    
+
     setitimer(ITIMER_PROF, &t, &old);
 
     saved_usec = old.it_value.tv_usec;
