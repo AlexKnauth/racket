@@ -7,6 +7,7 @@
          "output-port.rkt"
          "check.rkt"
          "file-position.rkt"
+         "char-column-width.rkt"
          "../string/utf-8-decode.rkt")
 
 (provide port-count-lines-enabled
@@ -16,7 +17,7 @@
          port-counts-lines?
          port-next-location
          set-port-next-location!
-         
+
          port-count!
          port-count-byte!
 
@@ -153,7 +154,7 @@
           (set-location-position! loc position)
           (set-location-state! loc state)
           (set-location-cr-state! loc cr-state)]
-         [else          
+         [else
           ;; span doesn't include CR, LF, or tab
           (finish-utf-8 end 'state)])]
        [else
@@ -191,8 +192,7 @@
   (for/sum ([c (in-string str)]) (char-columns c)))
 
 (define (char-columns c)
-  (cond ;[(char-fullwidth? c) 2]
-        [else 1]))
+  (or (char-column-width c) 1))
 
 ;; in atomic mode
 (define (port-count-all! in extra-ins amt bstr start)

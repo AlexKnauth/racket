@@ -8,6 +8,8 @@
 #include "schmach.h"
 #include "schrktio.h"
 #include <errno.h>
+#include <locale.h>
+#include <wchar.h>
 #ifdef OS_X
 /* needed for old gcc to define `off_t` */
 # include <unistd.h>
@@ -990,6 +992,17 @@ static Scheme_Object *quick_plus(Scheme_Object *s, intptr_t v)
 
 #define state_len(state) ((state >> 3) & 0x7)
 
+int mzchars_column_width(mzchar* mzcs, int n) {
+  locale_t loc = newlocale(2, "en_US.UTF-8", NULL);
+  int w = wcswidth_l(mzcs, n, loc);
+  freelocale(loc);
+  if (w < 0) {
+    return 1;
+  } else {
+    return w;
+  }
+}
+
 XFORM_NONGCING static void do_count_lines(Scheme_Port *ip, const char *buffer, intptr_t offset, intptr_t got)
 {
   intptr_t i;
@@ -1053,6 +1066,7 @@ XFORM_NONGCING static void do_count_lines(Scheme_Port *ip, const char *buffer, i
     int col = ip->column, n;
     int prev_i = got - c;
     int state = ip->utf8state;
+    mzchar* mzchar_buffer = NULL;
     n = state_len(state);
     degot += n;
     col -= n;
@@ -1060,8 +1074,13 @@ XFORM_NONGCING static void do_count_lines(Scheme_Port *ip, const char *buffer, i
       if (buffer[offset + i] == '\t') {
 	n = scheme_utf8_decode_count((const unsigned char *)buffer, offset + prev_i, offset + i, &state, 0, 0xFFFD);
 	degot += ((i - prev_i) - n);
-  // TODO: duospace columns
-	col += n;
+	// duospace columns
+	mzchar_buffer = malloc(n * sizeof(mzchar));
+	scheme_utf8_decode_as_prefix((const unsigned char *)buffer, offset + prev_i, offset + i,
+	                             mzchar_buffer, 0, n,
+	                             NULL, 0, 0xFFFD);
+	col += mzchars_column_width(mzchar_buffer, n);
+	free(mzchar_buffer);
 	col = col - (col & 0x7) + 8;
 	prev_i = i + 1;
       }
@@ -1069,8 +1088,13 @@ XFORM_NONGCING static void do_count_lines(Scheme_Port *ip, const char *buffer, i
     if (prev_i < i) {
       n = scheme_utf8_decode_count((const unsigned char *)buffer, offset + prev_i, offset + i, &state, 1, 0xFFFD);
       n += state_len(state);
-      // TODO: duospace columns
-      col += n;
+      // duospace columns
+      mzchar_buffer = malloc(n * sizeof(mzchar));
+      scheme_utf8_decode_as_prefix((const unsigned char *)buffer, offset + prev_i, offset + i,
+                                   mzchar_buffer, 0, n,
+                                   NULL, 0, 0xFFFD);
+      col += mzchars_column_width(mzchar_buffer, n);
+      free(mzchar_buffer);
       degot += ((i - prev_i) - n);
     }
     if (ip->column >= 0)
