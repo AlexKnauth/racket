@@ -120,7 +120,7 @@ void scheme_init_bool (Scheme_Startup_Env *env)
                              env);
 
   scheme_addto_prim_instance("equal-always?",
-                             scheme_make_prim_w_arity(equal_always_prim, "equal-always?/recur", 2, 2),
+                             scheme_make_prim_w_arity(equal_always_prim, "equal-always?", 2, 2),
                              env);
   scheme_addto_prim_instance("equal-always?/recur",
                              scheme_make_prim_w_arity(equal_always_recur_prim, "equal-always?/recur", 3, 3),
