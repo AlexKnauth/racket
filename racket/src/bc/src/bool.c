@@ -402,6 +402,7 @@ XFORM_NONGCING int is_fast_equal (Scheme_Object *obj1, Scheme_Object *obj2, int 
  case scheme_flvector_type:
    {
      intptr_t l1, l2, i;
+     if (for_chaperone_equalw) return -1;
      l1 = SCHEME_FLVEC_SIZE(obj1);
      l2 = SCHEME_FLVEC_SIZE(obj2);
      if (l1 == l2) {
@@ -418,6 +419,7 @@ XFORM_NONGCING int is_fast_equal (Scheme_Object *obj1, Scheme_Object *obj2, int 
  case scheme_extflvector_type:
    {
      intptr_t l1, l2, i;
+     if (for_chaperone_equalw) return -1;
      l1 = SCHEME_EXTFLVEC_SIZE(obj1);
      l2 = SCHEME_EXTFLVEC_SIZE(obj2);
      if (l1 == l2) {
