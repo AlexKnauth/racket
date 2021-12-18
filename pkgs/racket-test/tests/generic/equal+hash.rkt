@@ -34,7 +34,7 @@
     (check-equal? (equal-always-hash-code (kons 1 2))
                   (equal-always-hash-code (kons 1 2))))
 
-  (test-case "mkons as an mutable pair"
+  (test-case "mkons as a mutable pair"
     (check-equal? (mkons 1 2) (mkons 1 2))
     (check-false (equal-always? (mkons 1 2) (mkons 1 2)))
     (check-false (equal? (mkons 1 2) 2))
