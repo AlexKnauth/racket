@@ -581,6 +581,7 @@ extern Scheme_Object *scheme_unsafe_struct_star_set_proc;
 extern Scheme_Object *scheme_hash_proc;
 extern Scheme_Object *scheme_hasheq_proc;
 extern Scheme_Object *scheme_hasheqv_proc;
+extern Scheme_Object *scheme_hashalw_proc;
 extern Scheme_Object *scheme_hash_ref_proc;
 extern Scheme_Object *scheme_box_p_proc;
 extern Scheme_Object *scheme_box_proc;
@@ -1045,9 +1046,11 @@ Scheme_Object *scheme_intern_literal_number(Scheme_Object *num);
 Scheme_Object *scheme_make_immutable_hash(int argc, Scheme_Object *argv[]);
 Scheme_Object *scheme_make_immutable_hasheq(int argc, Scheme_Object *argv[]);
 Scheme_Object *scheme_make_immutable_hasheqv(int argc, Scheme_Object *argv[]);
+Scheme_Object *scheme_make_immutable_hashalw(int argc, Scheme_Object *argv[]);
 Scheme_Object *scheme_hash_eq_p(int argc, Scheme_Object *argv[]);
 Scheme_Object *scheme_hash_eqv_p(int argc, Scheme_Object *argv[]);
 Scheme_Object *scheme_hash_equal_p(int argc, Scheme_Object *argv[]);
+Scheme_Object *scheme_hash_equal_always_p(int argc, Scheme_Object *argv[]);
 Scheme_Object *scheme_hash_table_put(int argc, Scheme_Object *argv[]);
 Scheme_Object *scheme_hash_table_iterate_start(int argc, Scheme_Object *argv[]);
 Scheme_Object *scheme_hash_table_iterate_next(int argc, Scheme_Object *argv[]);
@@ -1081,6 +1084,7 @@ Scheme_Object *scheme_unsafe_hash_tree_next(Scheme_Hash_Tree *ht, Scheme_Object 
 Scheme_Object *scheme_hash_tree_next_pos(Scheme_Hash_Tree *tree, mzlonglong pos);
 int scheme_hash_tree_equal(Scheme_Hash_Tree *t1, Scheme_Hash_Tree *t2);
 int scheme_is_hash_tree_equal(Scheme_Object *o);
+int scheme_is_hash_tree_equal_always(Scheme_Object *o);
 int scheme_is_hash_tree_eqv(Scheme_Object *o);
 
 Scheme_Object *scheme_chaperone_hash_key(const char *name, Scheme_Object *table, Scheme_Object *key);
@@ -1320,7 +1324,12 @@ Scheme_Object *scheme_chaperone_not_undefined(Scheme_Object *orig_val);
 
 int scheme_is_noninterposing_chaperone(Scheme_Object *obj);
 
-Scheme_Object *scheme_apply_impersonator_of(int for_chaperone, Scheme_Object *procs, Scheme_Object *obj);
+/* mode
+   0: 'equal?
+   1: 'chaperone-of?
+   3: 'impersonator-of?
+   5: 'equal-always? */
+Scheme_Object *scheme_apply_impersonator_of(int mode, Scheme_Object *procs, Scheme_Object *obj);
 
 /*========================================================================*/
 /*                         syntax objects                                 */
@@ -3948,6 +3957,7 @@ Scheme_Object *scheme_make_environment_variables(Scheme_Hash_Tree *ht);
 void *scheme_environment_variables_to_block(Scheme_Object *env, int *_need_free);
 
 int scheme_compare_equal(void *v1, void *v2);
+int scheme_compare_equal_always(void *v1, void *v2);
 
 typedef struct Scheme_Performance_State {
   intptr_t start, gc_start;
