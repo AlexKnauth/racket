@@ -1076,26 +1076,28 @@
 
   (void))
 
-(let ([was-always? #f])
+(let ([mode-was #f])
   (test 'new-protocol car '(new-protocol))
   ;; new `prop:equal+hash` that more fully supports `equal-always?`
   (define-struct o (x y z)
     #:property prop:equal+hash (list
-                                (lambda (a b equal? always?)
-                                  (set! was-always? always?)
+                                (lambda (a b equal? mode)
+                                  (set! mode-was mode)
                                   (and (equal? (o-x a) (o-x b))
                                        (equal? (o-z a) (o-z b))))
-                                (lambda (a hash always?)
-                                  (set! was-always? always?)
+                                (lambda (a hash mode)
+                                  (set! mode-was mode)
                                   (+ (hash (o-x a)) (* 9 (hash (o-z a))))))
     #:mutable)
 
+  ;; mode was #t for `equal?`
   (test #t equal? (make-o 1 2 3) (make-o 1 20 3))
   (test #f equal? (make-o 1 2 3) (make-o 1 20 30))
-  (test #f values was-always?)
+  (test #t values mode-was)
+  ;; mode was #f for `equal-always?`
   (test #t equal-always? (make-o 1 2 3) (make-o 1 20 3))
   (test #f equal-always? (make-o 1 2 3) (make-o 1 20 30))
-  (test #t values was-always?)
+  (test #f values mode-was)
 
   (test #t equal?
         (shared ([t (make-o t 0 0)]) t) 
@@ -1111,9 +1113,9 @@
         (shared ([t (make-o t 0 1)]) t))
 
   (test #t = (equal-hash-code (make-o 1 2 3)) (equal-hash-code (make-o 1 20 3)))
-  (test #f values was-always?)
+  (test #t values mode-was)
   (test #t = (equal-always-hash-code (make-o 1 2 3)) (equal-always-hash-code (make-o 1 20 3)))
-  (test #t values was-always?)
+  (test #f values mode-was)
   (test #t =
         (equal-hash-code (shared ([t (make-o 0 0 t)]) t))
         (equal-hash-code (shared ([t (make-o 0 0 t)]) t)))

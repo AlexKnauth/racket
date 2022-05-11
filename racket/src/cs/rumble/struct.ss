@@ -419,11 +419,11 @@
          (record-type-equal-procedure rtd (let ([p (car guarded-val)])
                                             (if (#%procedure? p)
                                                 p
-                                                (lambda (v1 v2 e? always?) (|#%app| p v1 v2 e? always?)))))
+                                                (lambda (v1 v2 e? mode) (|#%app| p v1 v2 e? mode)))))
          (record-type-hash-procedure rtd (let ([p (cadr guarded-val)])
                                            (if (#%procedure? p)
                                                p
-                                               (lambda (v h always?) (|#%app| p v h always?)))))]
+                                               (lambda (v h mode) (|#%app| p v h mode)))))]
         [else
          ;; old protocol, which doesn't support `equal-always?` customization
          ;; if any field is mutable

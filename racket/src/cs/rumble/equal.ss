@@ -138,10 +138,11 @@
                      ;; `prop:equal+hash` or transparency
                      (let ([rec-equal? (record-equal-procedure a b)])
                        (and rec-equal?
-                            (let ([new-api? (procedure-arity-includes? rec-equal? 4)])
+                            (let ([new-api? (procedure-arity-includes? rec-equal? 4)]
+                                  [mode-chap/always? (or (eq? mode 'chaperone-of?) (eq? mode 'equal-always?))])
                               (or (check-union-find ctx a b)
                                   (cond
-                                    [(and (or (eq? mode 'chaperone-of?) (eq? mode 'equal-always?))
+                                    [(and mode-chap/always?
                                           (struct-type-mutable? (record-rtd a))
                                           ;; With the old API, mutable records must be `eq?` for `chaperone-of?`
                                           ;; and `equal-always?`
@@ -152,14 +153,14 @@
                                                    ;; Make sure record sees only booleans:
                                                    (and (eql? a b) #t))])
                                        (if new-api?
-                                           (rec-equal? orig-a orig-b eql? (eq? mode 'equal-always?))
+                                           (rec-equal? orig-a orig-b eql? (not mode-chap/always?))
                                            (rec-equal? orig-a orig-b eql?)))]
                                     [else
                                      (let ([eql? (let ([ctx (deeper-context ctx)])
                                                    (lambda (a b)
                                                      (equal? a b ctx)))])
                                        (if new-api?
-                                           (rec-equal? orig-a orig-b eql? (eq? mode 'equal-always?))
+                                           (rec-equal? orig-a orig-b eql? (not mode-chap/always?))
                                            (rec-equal? orig-a orig-b eql?)))])))))])))]
            [(and (or (eq? mode 'chaperone-of?) (eq? mode 'equal-always?))
                  ;; Mutable strings and bytevectors must be `eq?` for `chaperone-of?` and `equal-always?`
