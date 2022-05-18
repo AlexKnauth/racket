@@ -732,12 +732,12 @@
   (test (void) hash-for-each (hash 'one 1) (proc void))
   (test (void) hash-for-each (hasheq 'one 1) (proc void))
   (test (void) hash-for-each (hasheqv 'one 1) (proc void))
-  (test (void) hash-for-each (hashalw 'one 1) (proc void)))
+  (test (void) hash-for-each (hashalw 'one 1) (proc void))
 
   (test (hash 'one 2) hash-map/copy (hash 'one 1) (proc (lambda (k v) (values k (add1 v)))))
   (test (hasheq 'one 2) hash-map/copy (hasheq 'one 1) (proc (lambda (k v) (values k (add1 v)))))
-  (test (hasheqv 'one 2) hash-map/copy (hasheqv 'one 1) (proc (lambda (k v) (values k (add1 v))))))
-  (test (hashequalw 'one 2) hash-map/copy (hashequalw 'one 1) (proc (lambda (k v) (values k (add1 v))))))
+  (test (hasheqv 'one 2) hash-map/copy (hasheqv 'one 1) (proc (lambda (k v) (values k (add1 v)))))
+  (test (hashalw 'one 2) hash-map/copy (hashalw 'one 1) (proc (lambda (k v) (values k (add1 v))))))
 
 ;; ----------------------------------------
 
