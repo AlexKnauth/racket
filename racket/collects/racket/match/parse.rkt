@@ -58,7 +58,8 @@
   (define (rearm new-stx) (syntax-rearm new-stx stx))
   (define (rearm+parse new-stx) (parse (rearm new-stx)))
   (define disarmed-stx (syntax-disarm stx orig-insp))
-  (syntax-case* disarmed-stx (not var struct box cons list vector ? and or quote app
+  (syntax-case* disarmed-stx (not var struct box cons list vector ? and and-then or
+                                  quote app
                                   regexp pregexp list-rest list-no-order hash-table
                                   quasiquote mcons list* mlist)
                 (lambda (x y) (eq? (syntax-e x) (syntax-e y)))
@@ -73,6 +74,8 @@
      (Var (rearm #'v))]
     [(and p ...)
      (OrderedAnd (map rearm+parse (syntax->list #'(p ...))))]
+    [(and-then p ...)
+     (AndThen (map rearm+parse (syntax->list #'(p ...))))]
     [(or)
      (Not (Dummy stx))]
     [(or p ps ...)
@@ -233,6 +236,7 @@
     [(? p)
      (Pred (rearm #'p))]
     [(app f ps ...) ;; only make a list for more than one pattern
+     ; TODO: should there be a rearm on #'f here?
      (App #'f (map rearm+parse (syntax->list #'(ps ...))))]
     [(quasiquote p)
      (parse-quasi #'p rearm+parse)]

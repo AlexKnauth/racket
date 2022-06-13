@@ -78,6 +78,7 @@
 (define-struct (Or Pat) (ps) #:transparent)
 (define-struct (And Pat) (ps) #:transparent)
 (define-struct (OrderedAnd And) () #:transparent)
+(define-struct (AndThen OrderedAnd) () #:transparent)
 ;; p is a pattern
 (define-struct (Not Pat) (p) #:transparent)
 
@@ -96,8 +97,9 @@
 
 ;; pats is a Listof Pat
 ;; rhs is an expression
-;; unmatch is an identifier
-;; vars-seen is a listof identifiers
+;; unmatch is either false or an identifier, refers to failure id from (=> id)
+;; vars-seen is a (Listof (Pairof Identifier (U #f Identifier))),
+;;   associating pattern-variables with internal identifiers
 (define-struct Row (pats rhs unmatch vars-seen) #:transparent
   #:property
   prop:custom-write

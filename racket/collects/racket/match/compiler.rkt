@@ -312,6 +312,37 @@
                                          (Row-unmatch row)
                                          (Row-vars-seen row)))
                          esc))))]
+    ;; AndThen to bind pattern variables from earlier patterns
+    ;; to make them available in later patterns
+    [(AndThen? first)
+     ;; only handle 1-row AndThen
+     (unless (null? (cdr block))
+       (error 'compile-one "AndThen block with multiple rows: ~a" block))
+     (define row (car block))
+     (define pats (Row-pats row))
+     (define unm (Row-unmatch row))
+     (define seen (Row-vars-seen row))
+     (define qs (And-ps (car pats)))
+     (define qvars (bound-vars (car pats)))
+     (define qtmps (generate-temporaries qvars))
+     #`(let-values
+           ([#,qtmps
+             #,(compile-row/then
+                (map (lambda _ x) qs)
+                (make-Row qs
+                          #`(values #,@qvars)
+                          unm
+                          seen)
+                esc)])
+         #,(compile*
+            xs
+            (list
+             (make-Row (cdr pats)
+                       #`(let #,(map list qvars qtmps)
+                           #,(Row-rhs row))
+                       unm
+                       (append (map cons qvars qtmps) seen)))
+            esc))]
     ;; the And rule
     [(And? first)
      ;; we only handle 1-row Ands
@@ -480,6 +511,10 @@
                              #'failkv))))))]
     [else (error 'compile "unsupported pattern: ~a\n" first)]))
 
+;; vars: (Listof Identifier), refers to input values to match against
+;; rows: (Listof Row), contains match cases, each with patterns and case output expr
+;; esc: Identifier, refers to escape continuation, function to call on failure
+;; -> Syntax, match output expr
 (define (compile* vars rows esc [reorder? (can-reorder?)])
   (define (let/wrap clauses body)
     (if (stx-null? clauses)
@@ -550,6 +585,32 @@
                               acc)))))])
       (with-syntax ([(fns ... [_ (lambda () body)]) fns])
         (let/wrap #'(fns ...) #'body)))]))
+
+;; vars: (Listof Identifier), refers to input values to match against
+;; row: Row, contains one match case, with patterns and a case output expr
+;; esc: Identifier, refers to escape continuation, function to call on failure
+;; -> Syntax, match output expr
+(define (compile-row/then vars row esc)
+  (define pats (Row-pats row))
+  (define rhs (Row-rhs row))
+  (define unm (Row-unmatch row))
+  (define seen (Row-vars-seen row))
+  (let loop ([vars vars] [pats pats] [seen seen])
+    (cond
+      [(and (null? vars) (null? pats)) rhs]
+      [(and (pair? vars) (pair? pats))
+       (define p (car pats))
+       (define pvs (bound-vars p))
+       (compile*
+        (list (car vars))
+        (list (make-Row (list p)
+                        (loop (cdr vars)
+                              (cdr pats)
+                              (append (map cons pvs pvs) seen))
+                        unm
+                        seen))
+        esc)]
+      [else (error "bad")])))
 
 ;; (require mzlib/trace)
 ;; (trace compile* compile-one)
