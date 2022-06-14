@@ -224,20 +224,16 @@
                        (begin
                          (log-error "non-linear pattern used in `match` with ... at ~a and ~a"
                                     (car id) (cadr id)) 
-                         (let ([v* (free-identifier-mapping-get
-                                    (current-renaming) v (lambda () v))])
-                           (make-Row ps
-                                     #`(let ([#,v* #,x]) #,(Row-rhs row))
-                                     (Row-unmatch row)
-                                     (cons (cons v x) (Row-vars-seen row)))))))]
+                         (make-Row ps
+                                   #`(let ([#,v #,x]) #,(Row-rhs row))
+                                   (Row-unmatch row)
+                                   (cons (cons v x) (Row-vars-seen row))))))]
                 ;; otherwise, bind the matched variable to x, and add it to the
                 ;; list of vars we've seen
-                [else (let ([v* (free-identifier-mapping-get
-                                 (current-renaming) v (lambda () v))])
-                        (make-Row ps
-                                  #`(let ([#,v* #,x]) #,(Row-rhs row))
-                                  (Row-unmatch row)
-                                  (cons (cons v x) (Row-vars-seen row))))]))])
+                [else (make-Row ps
+                                #`(let ([#,v #,x]) #,(Row-rhs row))
+                                (Row-unmatch row)
+                                (cons (cons v x) (Row-vars-seen row)))]))])
        ;; compile the transformed block
        (compile* xs (map transform block) esc))]
     ;; the Constructor rule
@@ -430,13 +426,11 @@
              (map (lambda (x) (cons x x))
                   (bound-vars tail))]
             [hid-argss (map generate-temporaries head-idss)]
-            [head-idss* (map generate-temporaries head-idss)]
             [hid-args (apply append hid-argss)]
             [reps (generate-temporaries (for/list ([head heads]) 'rep))])
        (with-syntax ([x xvar]
                      [var0 (car vars)]
                      [((hid ...) ...) head-idss]
-                     [((hid* ...) ...) head-idss*]
                      [((hid-arg ...) ...) hid-argss]
                      [(rep ...) reps]
                      [(maxrepconstraint ...)
@@ -455,7 +449,7 @@
                      [(parse-loop failkv fail-tail)
                       (generate-temporaries #'(parse-loop failkv fail-tail))])
          (with-syntax ([(rhs ...)
-                        #`[(let ([hid-arg (cons hid* hid-arg)] ...)
+                        #`[(let ([hid-arg (cons hid hid-arg)] ...)
                              (if maxrepconstraint
                                  (let ([rep (add1 rep)])
                                    (parse-loop x #,@hid-args #,@reps fail))
@@ -476,17 +470,6 @@
                                                        (Row-vars-seen
                                                         (car block)))))
                                       #'fail-tail))])])
-           (parameterize ([current-renaming
-                           (for/fold ([ht (copy-mapping (current-renaming))])
-                               ([id (apply append head-idss)]
-                                [id* (apply append head-idss*)])
-                             (free-identifier-mapping-put! ht id id*)
-                             (free-identifier-mapping-for-each
-                              ht
-                              (lambda (k v)
-                                (when (free-identifier=? v id)
-                                  (free-identifier-mapping-put! ht k id*))))
-                             ht)])
              #`(let parse-loop ([x var0]
                                 [hid-arg null] ... ...
                                 [rep 0] ...
@@ -508,7 +491,7 @@
                                                heads-seen
                                                (Row-vars-seen
                                                 (car block))))))
-                             #'failkv))))))]
+                             #'failkv)))))]
     [else (error 'compile "unsupported pattern: ~a\n" first)]))
 
 ;; vars: (Listof Identifier), refers to input values to match against

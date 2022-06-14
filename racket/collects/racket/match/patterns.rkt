@@ -156,9 +156,7 @@
   (cond
     [(Dummy? p) null]
     [(Pred? p) null]
-    [(Var? p)
-     (let ([v (Var-v p)])
-       (list (free-identifier-mapping-get (current-renaming) v (lambda () v))))]
+    [(Var? p) (list (Var-v p))]
     [(Or? p)
      (bound-vars (car (Or-ps p)))]
     [(Box? p)
@@ -189,14 +187,6 @@
   (remove-duplicates
    (foldr (λ (pat vars) (append (bound-vars (parse-id pat)) vars)) '() pats)
    bound-identifier=?))
-
-(define current-renaming (make-parameter (make-free-identifier-mapping) #f 'current-renaming))
-
-(define (copy-mapping ht)
-  (define new-ht (make-free-identifier-mapping))
-  (free-identifier-mapping-for-each
-   ht (lambda (k v) (free-identifier-mapping-put! new-ht k v)))
-  new-ht)
 
 #|
 ;; EXAMPLES
