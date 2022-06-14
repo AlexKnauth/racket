@@ -154,7 +154,7 @@
   (cond
     [(Dummy? p) null]
     [(Pred? p) null]
-    [(Var? p) (list (Var-v p))]
+    [(Var? p) (list (depth0 (Var-v p)))]
     [(Or? p)
      (bound-vars (car (Or-ps p)))]
     [(Box? p)
@@ -166,9 +166,12 @@
      (merge (list (bound-vars (MPair-a p)) (bound-vars (MPair-d p))))]
     [(GSeq? p)
      (merge (cons (bound-vars (GSeq-tail p))
-                  (for/list ([pats (GSeq-headss p)])
-                    (merge (for/list ([pat pats])
-                             (bound-vars pat))))))]
+                  (for/list ([pats (GSeq-headss p)]
+                             [once? (GSeq-onces? p)])
+                    (define vs
+                      (merge (for/list ([pat pats])
+                               (bound-vars pat))))
+                    (if once? vs (map depth+1 vs)))))]
     [(Vector? p)
      (merge (map bound-vars (Vector-ps p)))]
     [(Struct? p)
@@ -185,6 +188,26 @@
   (remove-duplicates
    (foldr (λ (pat vars) (append (bound-vars (parse-id pat)) vars)) '() pats)
    bound-identifier=?))
+
+;; get-depth : Identifier -> Natural
+;; Gets the 'match-ellipsis-depth property, default 0
+(define (get-depth x)
+  ;; Repeatedly take the car as long as its a pair
+  (define (ca*r v) (if (pair? v) (ca*r (car v)) v))
+  (define v (ca*r (syntax-property x 'match-ellipsis-depth)))
+  (if (exact-nonnegative-integer? v) v 0))
+
+;; depth0 : Identifier -> Identifier
+;; Sets 'match-ellipsis-depth property to 0
+;; (get-depth (depth0 x)) = 0
+(define (depth0 x)
+  (syntax-property x 'match-ellipsis-depth 0))
+
+;; depth+1 : Identifier -> Identifier
+;; Increments the 'match-ellipsis-depth property
+;; (get-depth (depth+1 x)) = (add1 (get-depth x))
+(define (depth+1 x)
+  (syntax-property x 'match-ellipsis-depth (add1 (get-depth x))))
 
 #|
 ;; EXAMPLES
