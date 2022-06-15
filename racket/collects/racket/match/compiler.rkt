@@ -397,7 +397,7 @@
             [tail-seen
              (map (lambda (x) (cons x x))
                   (bound-vars tail))]
-            [hid-argss (map generate-temporaries head-idss)]
+            [hid-argss (map generate-temporaries/copy-symprops head-idss/depth)]
             [hid-args (apply append hid-argss)]
             [reps (generate-temporaries (for/list ([head heads]) 'rep))])
        (with-syntax ([x xvar]
@@ -537,6 +537,18 @@
                               acc)))))])
       (with-syntax ([(fns ... [_ (lambda () body)]) fns])
         (let/wrap #'(fns ...) #'body)))]))
+
+;; generate-temporaries/copy-symprops : (Listof Syntax) -> (Listof Identifier)
+(define (generate-temporaries/copy-symprops stxs)
+  (for/list ([tmp (in-list (generate-temporaries stxs))]
+             [stx (in-list stxs)])
+    (copy-symprops tmp stx)))
+
+;; copy-symprops : Syntax Syntax -> Syntax
+;; Copy only symbol properties, like 'match-ellipsis-depth and 'type-label
+(define (copy-symprops stx props)
+  (for/fold ([stx stx]) ([k (in-list (syntax-property-symbol-keys props))])
+    (syntax-property stx k (syntax-property props k))))
 
 ;; (require mzlib/trace)
 ;; (trace compile* compile-one)
