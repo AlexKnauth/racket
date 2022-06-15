@@ -241,7 +241,17 @@
               (parameterize ([match-equality-test eq?])
                 (check = 5 (match '((3) (3)) [(list a a) a] [_ 5]))))
    (test-case "Nonlinear patterns use equal?"
-              (check equal? '(3) (match '((3) (3)) [(list a a) a] [_ 5])))))
+              (check equal? '(3) (match '((3) (3)) [(list a a) a] [_ 5])))
+   (test-case "Nonlinear patterns under ellipses"
+     (check-equal? (match '((1 1) (2 2) (3 3))
+                     [(list (list a a) ...) a])
+                   '(1 2 3))
+     (check-equal? (match '((1 1 2 3) (2 1 2 3) (3 1 2 3))
+                     [(list (cons a (list pre ... a post ...)) ...) (list a pre post)])
+                   '((1 2 3) (() (1) (1 2)) ((2 3) (3) ())))
+     (check-equal? (match '((1 1 2 3) (2 1 2 3) (3 1 2 3))
+                     [(list (cons a (list-no-order a rst ...)) ...) (list a rst)])
+                   '((1 2 3) ((2 3) (1 3) (1 2)))))))
 
 
 (define doc-tests
