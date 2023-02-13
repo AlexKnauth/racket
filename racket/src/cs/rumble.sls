@@ -325,6 +325,17 @@
           impersonate-hash
           chaperone-hash
 
+          prop:partial-order
+          partial-compare
+          partial-compare/recur
+          compare-hash-code
+          =~
+          !=~
+          <~
+          >~
+          <=~
+          >=~
+
           true-object?
 
           bytes shared-bytes
@@ -829,6 +840,7 @@
   (include "rumble/prefab.ss")
   (include "rumble/impersonator.ss")
   (include "rumble/equal.ss")
+  (include "rumble/partial-order.ss")
   (include "rumble/number.ss")
   (include "rumble/procedure.ss")
   (include "rumble/object-name.ss")
