@@ -181,6 +181,13 @@ In both cases, it works like `test` but uses `compare` instead of `equal?`.
 
 (define mz-test-syntax-errors-allowed? #t)
 
+;; exn-handler is intended to be used in with-handlers:
+;; (with-handlers ([exn:fail? exn-handler]) ...)
+(define (exn-handler e)
+  (set! number-of-tests (add1 number-of-tests))
+  (printf "GOT EXN ~s\n" e)
+  (record-error (list `(EXN ,e) 'no-exn '...)))
+
 (define thunk-error-test
   (case-lambda
    [(th expr) (thunk-error-test th expr exn:application:type?)]

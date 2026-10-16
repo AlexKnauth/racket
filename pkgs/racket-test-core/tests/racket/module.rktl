@@ -1377,7 +1377,7 @@
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Check JIT treatement of seemingly constant imports
 
-(let ()
+(with-handlers ([exn:fail? exn-handler])
   (define (a-expr mut?)
     `(module a racket/base
        (#%printing-module-begin
@@ -1767,7 +1767,7 @@ case of module-leve bindings; it doesn't cover local bindings.
      (void)]
     [else (error "unknown")]))
 
-(let ()
+(with-handlers ([exn:fail? exn-handler])
   (define dir (make-temporary-file "tmx~a" 'directory))
   (define tmx (build-path dir "tmx.rkt"))
   (define e (compile '(module tmx racket/base
@@ -1800,7 +1800,7 @@ case of module-leve bindings; it doesn't cover local bindings.
   (delete-directory/files dir))
 
 ;; Check that module-code caching works
-(let ()
+(with-handlers ([exn:fail? exn-handler])
   (define dir (make-temporary-file "tmx~a" 'directory))
   (define tmx (build-path dir "tmx2.rkt"))
   (define e (compile '(module tmx2 racket/kernel
@@ -2190,7 +2190,7 @@ case of module-leve bindings; it doesn't cover local bindings.
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Check `namespace-mapped-symbols` and modidx shifting
 
-(let ()
+(with-handlers ([exn:fail? exn-handler])
   (define tmp (make-temporary-file "~a-module-test" 'directory))
   (parameterize ([current-directory tmp]
                  [current-load-relative-directory tmp])
